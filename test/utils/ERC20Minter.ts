@@ -42,5 +42,7 @@ export default class ERC20Minter {
     }
 
     await (await token.transfer(recipient, amount)).wait()
+
+    return amount;
   }
 }

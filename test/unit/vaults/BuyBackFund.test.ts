@@ -147,7 +147,7 @@ describe(`BuyBackFund`, () => {
       'user not recived pay tokens!',
     )
     assert(
-      companySharesAfter.eq(companySharesBefore.add(estimatedSellTokens)),
+      companySharesAfter.eq(companySharesBefore.add(objectTokenShares)),
       'company not recived shares!',
     )
   })

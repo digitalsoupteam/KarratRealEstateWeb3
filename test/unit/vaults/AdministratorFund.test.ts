@@ -154,7 +154,6 @@ describe(`AdministratorFund`, () => {
     ).to.be.revertedWith('only administrator!')
   })
 
-
   it('Regular: Upgarde only deployer', async () => {
     const administratorFundFactory = await ethers.getContractFactory('AdministratorFund')
     const newAdministratorFund = await administratorFundFactory.deploy()

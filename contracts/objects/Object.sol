@@ -136,7 +136,6 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         votingExpiredTimestamp[votingId] = _expiredTimestamp;
     }
 
-    
     function disableReferralProgram() external {
         addressBook.accessRoles().requireAdministrator(msg.sender);
         referralProgramEnabled = false;
@@ -319,10 +318,7 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
     }
 
     function payTokenAmount(uint256 _sharesAmount, IERC20 _payToken) public view returns (uint256) {
-        return addressBook.pricersManager().usdAmountToToken(
-            sharesPrice(_sharesAmount),
-            _payToken
-        );
+        return addressBook.pricersManager().usdAmountToToken(sharesPrice(_sharesAmount), _payToken);
     }
 
     function buyShares(
@@ -358,7 +354,10 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         uint256 balanceBefore = _payToken.balanceOf(address(this));
         _payToken.safeTransferFrom(msg.sender, address(this), _payTokenAmount);
         uint256 balanceAfter = _payToken.balanceOf(address(this));
-        require(balanceAfter - balanceBefore == _payTokenAmount, "transfer fees are not supported!");
+        require(
+            balanceAfter - balanceBefore == _payTokenAmount,
+            "transfer fees are not supported!"
+        );
 
         // stage
         stagePayTokenAmount[_currentStage][_payToken] += _payTokenAmount;
@@ -459,11 +458,12 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         }
     }
 
+    function estimateRewardsUSD(uint256 _tokenId) public view returns (uint256) {
+        return (tokenShares[_tokenId] * earnings) / maxShares - tokenWithdrawnRewards[_tokenId];
+    }
+
     function _updateWithdrawnRewards(uint256 _tokenId) internal returns (uint256 rewardsUSD) {
-        rewardsUSD =
-            (tokenShares[_tokenId] * earnings) /
-            maxShares -
-            tokenWithdrawnRewards[_tokenId];
+        rewardsUSD = estimateRewardsUSD(_tokenId);
         tokenWithdrawnRewards[_tokenId] += rewardsUSD;
     }
 

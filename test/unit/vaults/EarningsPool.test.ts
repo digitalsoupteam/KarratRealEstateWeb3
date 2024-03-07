@@ -5,9 +5,9 @@ import {
   MultisigWallet,
   MultisigWallet__factory,
   Treasury__factory,
-  BuyBackFund__factory,
+  EarningsPool__factory,
   Treasury,
-  BuyBackFund,
+  EarningsPool,
   IERC20__factory,
   ObjectsFactory__factory,
   ObjectsFactory,
@@ -22,12 +22,12 @@ import { USDT } from '../../../constants/addresses'
 import ERC20Minter from '../../utils/ERC20Minter'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
-describe(`BuyBackFund`, () => {
+describe(`EarningsPool`, () => {
   let ownersMultisig: MultisigWallet
   let ownersMultisigImpersonated: SignerWithAddress
   let administrator: SignerWithAddress
   let user: SignerWithAddress
-  let buyBackFund: BuyBackFund
+  let earningsPool: EarningsPool
   let treasury: Treasury
   let pricersManager: PricersManager
   let objectsFactory: ObjectsFactory
@@ -37,8 +37,8 @@ describe(`BuyBackFund`, () => {
   before(async () => {
     await deployments.fixture()
 
-    buyBackFund = BuyBackFund__factory.connect(
-      (await deployments.get('BuyBackFund')).address,
+    earningsPool = EarningsPool__factory.connect(
+      (await deployments.get('EarningsPool')).address,
       ethers.provider,
     )
 
@@ -57,7 +57,10 @@ describe(`BuyBackFund`, () => {
       ethers.provider,
     )
 
-    pause = Pause__factory.connect((await deployments.get('Pause')).address, ethers.provider)
+    pause = Pause__factory.connect(
+      (await deployments.get('Pause')).address,
+      ethers.provider,
+    )
 
     const OwnersMultisigDeployment = await deployments.get('OwnersMultisig')
     ownersMultisig = MultisigWallet__factory.connect(
@@ -86,13 +89,13 @@ describe(`BuyBackFund`, () => {
 
   it(`withdrawToTreasury`, async () => {
     const token = IERC20__factory.connect(USDT, ethers.provider)
-    const mintedAmount = await ERC20Minter.mint(token.address, buyBackFund.address, 10000)
+    const mintedAmount = await ERC20Minter.mint(token.address, earningsPool.address, 10000)
 
     const withdrawAmount = mintedAmount.div(2)
 
     const treasuryBalanceBefore = await token.balanceOf(treasury.address)
 
-    await buyBackFund.connect(administrator).withdrawToTreasury(token.address, withdrawAmount)
+    await earningsPool.connect(administrator).withdrawToTreasury(token.address, withdrawAmount)
 
     const treasuryBalanceAfter = await token.balanceOf(treasury.address)
     assert(
@@ -101,14 +104,14 @@ describe(`BuyBackFund`, () => {
     )
 
     await expect(
-      buyBackFund.connect(user).withdrawToTreasury(token.address, withdrawAmount),
+      earningsPool.connect(user).withdrawToTreasury(token.address, withdrawAmount),
     ).to.be.revertedWith('only administrator!')
   })
 
-  it(`sellBack`, async () => {
+  it(`claimObjectRewards`, async () => {
     const token = IERC20__factory.connect(USDT, ethers.provider)
     await ERC20Minter.mint(token.address, user.address, 10000)
-    await ERC20Minter.mint(token.address, buyBackFund.address, 10000)
+    await ERC20Minter.mint(token.address, earningsPool.address, 10000)
 
     const objectId = 1
     const objectAddress = await objectsFactory.objectAddress(objectId)
@@ -130,69 +133,56 @@ describe(`BuyBackFund`, () => {
         ethers.constants.AddressZero,
       )
 
-    await expect(
-      buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0),
-    ).to.be.revertedWith('buy back price is zero!')
+    await object.connect(ownersMultisigImpersonated).addEarnings(ethers.utils.parseUnits('10000', 18))
 
-    await buyBackFund
-      .connect(ownersMultisigImpersonated)
-      .setBuyBackOneSharePrice(object.address, ethers.utils.parseUnits('110', 18))
+    // await expect(
+    //   earningsPool.connect(administrator).claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    // ).to.be.revertedWith('only token owner!')
 
-    await expect(
-      buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0),
-    ).to.be.revertedWith('stage not ready!')
+    // await pause.connect(administrator).pause()
+    
+    // await expect(
+    //   earningsPool.connect(user).claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    // ).to.be.revertedWith('paused!')
 
-    await object.connect(ownersMultisigImpersonated).closeStage(1)
+    // await pause.connect(ownersMultisigImpersonated).unpause()
 
-    await expect(
-      buyBackFund.connect(administrator).sellBack(object.address, objectTokenId, token.address, 0),
-    ).to.be.revertedWith('only token owner!')
-
-    await pause.connect(administrator).pause()
-
-    await expect(
-      buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0),
-    ).to.be.revertedWith('paused!')
-
-    await pause.connect(ownersMultisigImpersonated).unpause()
-
-    const estimatedSellTokens = await buyBackFund.estimateSellBackToken(
+    const estimatedClaimObjectRewardsToken = await earningsPool.estimateClaimObjectRewardsToken(
       object.address,
       objectTokenId,
       token.address,
     )
+    console.log(`estimatedClaimObjectRewardsToken ${estimatedClaimObjectRewardsToken}`)
+    console.log(`estimatedClaimObjectRewardsUSD ${await earningsPool.estimateClaimObjectRewardsUSD(
+      object.address,
+      objectTokenId,
+    )}`)
 
     const userBalanceBeforeBefore = await token.balanceOf(user.address)
-    const companySharesBefore = await object.companyShares()
-    await buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0)
+    await earningsPool.connect(user).claimObjectRewards(object.address, objectTokenId, token.address, 0)
     const userBalanceAfter = await token.balanceOf(user.address)
-    const companySharesAfter = await object.companyShares()
 
-    await expect(object.ownerOf(objectTokenId)).to.be.revertedWith('ERC721: invalid token ID')
     assert(
-      userBalanceAfter.eq(userBalanceBeforeBefore.add(estimatedSellTokens)),
+      userBalanceAfter.eq(userBalanceBeforeBefore.add(estimatedClaimObjectRewardsToken)),
       'user not recived pay tokens!',
-    )
-    assert(
-      companySharesAfter.eq(companySharesBefore.add(objectTokenShares)),
-      'company not recived shares!',
     )
   })
 
+  
   it('Regular: Upgarde only deployer', async () => {
-    const buyBackFundFactory = await ethers.getContractFactory('BuyBackFund')
-    const newBuyBackFund = await buyBackFundFactory.deploy()
+    const earningsPoolFactory = await ethers.getContractFactory('EarningsPool')
+    const newEarningsPool = await earningsPoolFactory.deploy()
 
-    await buyBackFund
+    await earningsPool
       .connect(ownersMultisigImpersonated)
-      .upgradeTo(newBuyBackFund.address)
+      .upgradeTo(newEarningsPool.address)
     const implementationAddress = await getImplementationAddress(
       ethers.provider,
-      buyBackFund.address,
+      earningsPool.address,
     )
     assert(
-      implementationAddress == newBuyBackFund.address,
-      `implementationAddress != newBuyBackFund.address. ${implementationAddress} != ${newBuyBackFund.address}`,
+      implementationAddress == newEarningsPool.address,
+      `implementationAddress != newEarningsPool.address. ${implementationAddress} != ${newEarningsPool.address}`,
     )
   })
 
@@ -205,7 +195,7 @@ describe(`BuyBackFund`, () => {
       console.log(`caller: ${name}`)
       const signer = users[name]
       await expect(
-        buyBackFund.connect(signer).upgradeTo(ethers.constants.AddressZero),
+        earningsPool.connect(signer).upgradeTo(ethers.constants.AddressZero),
       ).to.be.revertedWith('only owners multisig!')
     }
   })

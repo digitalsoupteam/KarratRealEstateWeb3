@@ -35,6 +35,23 @@ contract EarningsPool is UUPSUpgradeable, MulticallUpgradeable {
         _token.safeTransfer(_addressBook.treasury(), _amount);
     }
 
+    function estimateClaimObjectRewardsUSD(
+        IObject _object,
+        uint256 _tokenId
+    ) public view returns (uint256) {
+        return _object.estimateRewardsUSD(_tokenId);
+    }
+
+    function estimateClaimObjectRewardsToken(
+        IObject _object,
+        uint256 _tokenId,
+        IERC20 _payToken
+    ) public view returns (uint256) {
+        uint256 rewards = estimateClaimObjectRewardsUSD(_object, _tokenId);
+        if (rewards == 0) return 0;
+        return addressBook.pricersManager().usdAmountToToken(rewards, _payToken);
+    }
+
     function claimObjectRewards(
         IObject _object,
         uint256 _tokenId,
@@ -48,14 +65,11 @@ contract EarningsPool is UUPSUpgradeable, MulticallUpgradeable {
         _addressBook.requireObject(_object);
         _object.requireTokenOwner(_recipient, _tokenId);
 
-        uint256 rewardsUSD = _object.updateWithdrawnRewards(_tokenId);
-        require(rewardsUSD > 0, "not has rewards!");
-
-        uint256 payTokenAmount = _addressBook.pricersManager().usdAmountToToken(
-            rewardsUSD,
-            _payToken
-        );
+        uint256 payTokenAmount = estimateClaimObjectRewardsToken(_object, _tokenId, _payToken);
+        require(payTokenAmount > 0, "not has rewards!");
         require(payTokenAmount >= _minPayTokenAmount, "_minPayTokenAmount!");
+
+        _object.updateWithdrawnRewards(_tokenId);
 
         _payToken.safeTransfer(_recipient, payTokenAmount);
 

@@ -6,6 +6,8 @@ interface IObject {
 
     function updateWithdrawnRewards(uint256 _tokenId) external returns (uint256 rewardsUSD);
 
+    function estimateRewardsUSD(uint256 _tokenId) external view returns (uint256);
+
     function getSellBackPrice(uint256 _tokenId) external view returns (uint256 priceUSD);
 
     function splitToken(

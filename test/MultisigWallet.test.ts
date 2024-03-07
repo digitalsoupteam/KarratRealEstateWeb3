@@ -2,15 +2,11 @@ import { deployments, ethers } from 'hardhat'
 import { expect, assert } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
-  AccessRoles,
   AddressBook,
   AddressBook__factory,
   MultisigWallet,
   MultisigWallet__factory,
-  ObjectsFactory,
-  ReferralProgram,
   IERC20Metadata__factory,
-  IERC1967__factory,
   UUPSUpgradeable__factory,
 } from '../typechain-types'
 import * as helpers from '@nomicfoundation/hardhat-network-helpers'
@@ -42,6 +38,7 @@ describe(`MultisigWallet`, () => {
     ]
     owners = []
     for (const owner of ownersAddresses) {
+      assert(await ownersMultisig.signers(owner), "initial owner!")
       await helpers.impersonateAccount(owner)
       await helpers.setBalance(owner, ethers.utils.parseEther('100'))
       owners.push(await ethers.getSigner(owner))
@@ -54,7 +51,6 @@ describe(`MultisigWallet`, () => {
   })
 
   afterEach(async () => {
-    console.log('--- End test ---')
     await ethers.provider.send('evm_revert', [initSnapshot])
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })

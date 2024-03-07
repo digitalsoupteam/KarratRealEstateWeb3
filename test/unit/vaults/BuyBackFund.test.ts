@@ -124,11 +124,23 @@ describe(`BuyBackFund`, () => {
         ethers.constants.AddressZero,
       )
 
-    await object.connect(ownersMultisigImpersonated).closeStage(1)
+    await expect(
+      buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('buy back price is zero!')
 
     await buyBackFund
       .connect(ownersMultisigImpersonated)
       .setBuyBackOneSharePrice(object.address, ethers.utils.parseUnits('110', 18))
+
+    await expect(
+      buyBackFund.connect(user).sellBack(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('stage not ready!')
+
+    await object.connect(ownersMultisigImpersonated).closeStage(1)
+
+    await expect(
+      buyBackFund.connect(administrator).sellBack(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('only token owner!')
 
     const estimatedSellTokens = await buyBackFund.estimateSellBackToken(
       object.address,
@@ -142,6 +154,7 @@ describe(`BuyBackFund`, () => {
     const userBalanceAfter = await token.balanceOf(user.address)
     const companySharesAfter = await object.companyShares()
 
+    await expect(object.ownerOf(objectTokenId)).to.be.revertedWith('ERC721: invalid token ID')
     assert(
       userBalanceAfter.eq(userBalanceBeforeBefore.add(estimatedSellTokens)),
       'user not recived pay tokens!',

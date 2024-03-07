@@ -2,7 +2,7 @@
 pragma solidity 0.8.18;
 
 interface IObject {
-    function shares(uint256 _tokenId) external returns (uint256);
+    function tokenShares(uint256 _tokenId) external view returns (uint256);
 
     function updateWithdrawnRewards(uint256 _tokenId) external returns (uint256 rewardsUSD);
 

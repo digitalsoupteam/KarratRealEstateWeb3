@@ -29,6 +29,34 @@ contract BuyBackFund is UUPSUpgradeable, MulticallUpgradeable {
         _token.safeTransfer(_addressBook.treasury(), _amount);
     }
 
+    function setBuyBackOneSharePrice(IObject _object, uint256 _oneShareSellBackPriceUSD) external {
+        IAddressBook _addressBook = addressBook;
+        _addressBook.accessRoles().requireOwnersMultisig(msg.sender);
+        _addressBook.requireObject(_object);
+        oneShareSellBackPrice[_object] = _oneShareSellBackPriceUSD;
+    }
+
+    function estimateSellBackUSD(
+        IObject _object,
+        uint256 _tokenId
+    ) public view returns (uint256) {
+        return _object.tokenShares(_tokenId) * oneShareSellBackPrice[_object];
+    }
+
+    function estimateSellBackToken(
+        IObject _object,
+        uint256 _tokenId,
+        IERC20 _payToken
+    ) public view returns (uint256) {
+        uint256 rewardsUSD = estimateSellBackUSD(_object, _tokenId);
+        if(rewardsUSD == 0) return 0;
+        return
+            addressBook.pricersManager().usdAmountToToken(
+                rewardsUSD,
+                _payToken
+            );
+    }
+
     function sellBack(
         IObject _object,
         uint256 _tokenId,
@@ -38,6 +66,10 @@ contract BuyBackFund is UUPSUpgradeable, MulticallUpgradeable {
         address _recipient = msg.sender;
         IAddressBook _addressBook = addressBook;
 
+        uint256 _oneShareSellBackPrice = oneShareSellBackPrice[_object];
+
+        require(_oneShareSellBackPrice > 0, "buy back price is zero!");
+
         _addressBook.pause().requireNotPaused();
         _addressBook.requireObject(_object);
         _object.requireTokenReady(_tokenId);
@@ -45,10 +77,8 @@ contract BuyBackFund is UUPSUpgradeable, MulticallUpgradeable {
 
         _object.buyBack(_tokenId);
 
-        uint256 rewards = _object.shares(_tokenId) * oneShareSellBackPrice[_object];
-        require(rewards > 0, "not has rewards!");
-
-        uint256 payTokenAmount = _addressBook.pricersManager().usdAmountToToken(rewards, _payToken);
+        uint256 payTokenAmount = estimateSellBackToken(_object, _tokenId, _payToken);
+        require(payTokenAmount > 0, "not has rewards!");
         require(payTokenAmount >= _minPayTokenAmount, "_minPayTokenAmount!");
 
         _payToken.safeTransfer(_recipient, payTokenAmount);

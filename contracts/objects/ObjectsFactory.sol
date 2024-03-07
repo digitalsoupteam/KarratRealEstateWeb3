@@ -46,10 +46,6 @@ contract ObjectsFactory is UUPSUpgradeable, MulticallUpgradeable {
             );
     }
 
-    function nextObjectAddress() external view returns (address) {
-        return objectAddress(lastObjectId + 1);
-    }
-
     function createStageSaleObject(
         uint256 _maxShares,
         uint256 _intialStageAvailableShares,

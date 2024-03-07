@@ -1,24 +1,19 @@
 import { deployments, ethers } from 'hardhat'
-import { expect, use, assert } from 'chai'
+import { expect, assert } from 'chai'
 import { SignerWithAddress } from '@nomiclabs/hardhat-ethers/signers'
 import {
   AccessRoles,
   AccessRoles__factory,
   AddressBook,
   AddressBook__factory,
-  IMultisigWallet,
   MultisigWallet,
   MultisigWallet__factory,
   ObjectsFactory,
   ObjectsFactory__factory,
-  Object__factory,
-  IERC20__factory,
   ReferralProgram__factory,
   ReferralProgram,
-} from '../typechain-types'
+} from '../../../typechain-types'
 import * as helpers from '@nomicfoundation/hardhat-network-helpers'
-import { USDC, USDCe, USDT } from '../constants/addresses'
-import ERC20Minter from './utils/ERC20Minter'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
 describe(`AccessRoles`, () => {

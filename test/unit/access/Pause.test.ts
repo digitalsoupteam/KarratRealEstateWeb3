@@ -12,7 +12,7 @@ import {
   ObjectsFactory__factory,
   ReferralProgram__factory,
   ReferralProgram,
-} from '../typechain-types'
+} from '../../../typechain-types'
 import * as helpers from '@nomicfoundation/hardhat-network-helpers'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 

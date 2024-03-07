@@ -8,10 +8,10 @@ import {
   MultisigWallet__factory,
   IERC20Metadata__factory,
   UUPSUpgradeable__factory,
-} from '../typechain-types'
+} from '../../../typechain-types'
 import * as helpers from '@nomicfoundation/hardhat-network-helpers'
-import { USDT } from '../constants/addresses'
-import ERC20Minter from './utils/ERC20Minter'
+import { USDT } from '../../../constants/addresses'
+import ERC20Minter from '../../utils/ERC20Minter'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
 
 describe(`MultisigWallet`, () => {

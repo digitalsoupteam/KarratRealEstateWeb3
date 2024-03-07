@@ -42,7 +42,7 @@ contract AddressBook is IAddressBook, UUPSUpgradeable {
 
 
     function requireObjectsFactory(address _contract) public view {
-        require(_contract == objectsFactory, "only objectsFactory!");
+        require(_contract == objectsFactory, "only objects factory!");
     }
 
     function initialSetPause(address _pause) external {

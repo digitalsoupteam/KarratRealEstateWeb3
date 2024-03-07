@@ -57,10 +57,7 @@ describe(`EarningsPool`, () => {
       ethers.provider,
     )
 
-    pause = Pause__factory.connect(
-      (await deployments.get('Pause')).address,
-      ethers.provider,
-    )
+    pause = Pause__factory.connect((await deployments.get('Pause')).address, ethers.provider)
 
     const OwnersMultisigDeployment = await deployments.get('OwnersMultisig')
     ownersMultisig = MultisigWallet__factory.connect(
@@ -133,49 +130,77 @@ describe(`EarningsPool`, () => {
         ethers.constants.AddressZero,
       )
 
-    await object.connect(ownersMultisigImpersonated).addEarnings(ethers.utils.parseUnits('10000', 18))
+    await expect(
+      earningsPool
+        .connect(user)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('not has rewards!')
 
-    // await expect(
-    //   earningsPool.connect(administrator).claimObjectRewards(object.address, objectTokenId, token.address, 0),
-    // ).to.be.revertedWith('only token owner!')
+    await object
+      .connect(ownersMultisigImpersonated)
+      .addEarnings(ethers.utils.parseUnits('10000', 18))
 
-    // await pause.connect(administrator).pause()
-    
-    // await expect(
-    //   earningsPool.connect(user).claimObjectRewards(object.address, objectTokenId, token.address, 0),
-    // ).to.be.revertedWith('paused!')
+    await expect(
+      earningsPool
+        .connect(administrator)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('only token owner!')
 
-    // await pause.connect(ownersMultisigImpersonated).unpause()
+    await pause.connect(administrator).pause()
+
+    await expect(
+      earningsPool
+        .connect(user)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('paused!')
+
+    await pause.connect(ownersMultisigImpersonated).unpause()
 
     const estimatedClaimObjectRewardsToken = await earningsPool.estimateClaimObjectRewardsToken(
       object.address,
       objectTokenId,
       token.address,
     )
-    console.log(`estimatedClaimObjectRewardsToken ${estimatedClaimObjectRewardsToken}`)
-    console.log(`estimatedClaimObjectRewardsUSD ${await earningsPool.estimateClaimObjectRewardsUSD(
-      object.address,
-      objectTokenId,
-    )}`)
 
-    const userBalanceBeforeBefore = await token.balanceOf(user.address)
-    await earningsPool.connect(user).claimObjectRewards(object.address, objectTokenId, token.address, 0)
+    const userBalanceBefore = await token.balanceOf(user.address)
+    await earningsPool
+      .connect(user)
+      .claimObjectRewards(object.address, objectTokenId, token.address, 0)
     const userBalanceAfter = await token.balanceOf(user.address)
 
     assert(
-      userBalanceAfter.eq(userBalanceBeforeBefore.add(estimatedClaimObjectRewardsToken)),
+      userBalanceAfter.eq(userBalanceBefore.add(estimatedClaimObjectRewardsToken)),
       'user not recived pay tokens!',
+    )
+
+    await object
+      .connect(ownersMultisigImpersonated)
+      .sellObjectAndClose(ethers.utils.parseUnits('1000', 18))
+
+    const estimatedClaimObjectRewardsToken2 = await earningsPool.estimateClaimObjectRewardsToken(
+      object.address,
+      objectTokenId,
+      token.address,
+    )
+
+    const userBalanceBefore2 = await token.balanceOf(user.address)
+    await earningsPool
+      .connect(user)
+      .claimObjectRewards(object.address, objectTokenId, token.address, 0)
+    const userBalanceAfter2 = await token.balanceOf(user.address)
+
+    await expect(object.ownerOf(objectTokenId)).to.be.revertedWith('ERC721: invalid token ID')
+    assert(
+      userBalanceAfter2.eq(userBalanceBefore2.add(estimatedClaimObjectRewardsToken2)),
+      'user not recived pay tokens2!',
     )
   })
 
-  
   it('Regular: Upgarde only deployer', async () => {
     const earningsPoolFactory = await ethers.getContractFactory('EarningsPool')
     const newEarningsPool = await earningsPoolFactory.deploy()
 
-    await earningsPool
-      .connect(ownersMultisigImpersonated)
-      .upgradeTo(newEarningsPool.address)
+    await earningsPool.connect(ownersMultisigImpersonated).upgradeTo(newEarningsPool.address)
     const implementationAddress = await getImplementationAddress(
       ethers.provider,
       earningsPool.address,

@@ -27,6 +27,8 @@ describe(`ReferralProgram`, () => {
   let ownersMultisigImpersonated: SignerWithAddress
   let administrator: SignerWithAddress
   let user: SignerWithAddress
+  let referrer: SignerWithAddress
+  let referrer2: SignerWithAddress
   let referralProgram: ReferralProgram
   let treasury: Treasury
   let pricersManager: PricersManager
@@ -70,6 +72,8 @@ describe(`ReferralProgram`, () => {
 
     const accounts = await ethers.getSigners()
     user = accounts[1]
+    referrer = accounts[8]
+    referrer2 = accounts[7]
 
     const administratorAddress = '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955'
     await helpers.impersonateAccount(administratorAddress)
@@ -111,89 +115,87 @@ describe(`ReferralProgram`, () => {
     await ERC20Minter.mint(token.address, referralProgram.address, 10000)
 
     const objectId = 1
+    const stageId = 1
     const objectAddress = await objectsFactory.objectAddress(objectId)
+    const oneSharePrice = ethers.utils.parseUnits('100', 18)
     await objectsFactory
       .connect(ownersMultisigImpersonated)
-      .createFullSaleObject(100, 0, ethers.utils.parseUnits('100', 18), true)
+      .createFullSaleObject(100, 0, oneSharePrice, true)
 
     const object = Object__factory.connect(objectAddress, ethers.provider)
+
+    const referrerRewardsBefore = await referralProgram.rewards(
+      referrer.address,
+      object.address,
+      stageId,
+    )
 
     const objectTokenId = 1
     const objectTokenShares = 10
     await token.connect(user).approve(object.address, ethers.constants.MaxUint256)
     await object
       .connect(user)
-      .buyShares(
-        objectTokenShares,
-        token.address,
-        ethers.constants.MaxUint256,
-        ethers.constants.AddressZero,
-      )
+      .buyShares(objectTokenShares, token.address, ethers.constants.MaxUint256, referrer.address)
 
-    // await expect(
-    //   referralProgram
-    //     .connect(user)
-    //     .claimObjectRewards(object.address, objectTokenId, token.address, 0),
-    // ).to.be.revertedWith('not has rewards!')
+    const referrerRewardsAfter = await referralProgram.rewards(
+      referrer.address,
+      object.address,
+      stageId,
+    )
 
-    // await object
-    //   .connect(ownersMultisigImpersonated)
-    //   .addEarnings(ethers.utils.parseUnits('10000', 18))
+    const rewardsRatio = await referralProgram.rewarsRatio()
 
-    // await expect(
-    //   referralProgram
-    //     .connect(administrator)
-    //     .claimObjectRewards(object.address, objectTokenId, token.address, 0),
-    // ).to.be.revertedWith('only token owner!')
+    const calculatedClaimUSD = oneSharePrice.mul(objectTokenShares).mul(rewardsRatio).div(10000)
+    const estimateClaimUSD = await referralProgram.estimateClaimUSD(
+      referrer.address,
+      object.address,
+      stageId,
+    )
 
-    // await pause.connect(administrator).pause()
+    assert(calculatedClaimUSD.eq(estimateClaimUSD), 'calculatedClaimUSD != estimateClaimUSD')
+    assert(
+      referrerRewardsAfter.eq(referrerRewardsBefore.add(estimateClaimUSD)),
+      'rewards not recived!',
+    )
 
-    // await expect(
-    //   referralProgram
-    //     .connect(user)
-    //     .claimObjectRewards(object.address, objectTokenId, token.address, 0),
-    // ).to.be.revertedWith('paused!')
+    const estimatedClaimToken = await referralProgram.estimateClaimToken(
+      referrer.address,
+      object.address,
+      stageId,
+      token.address,
+    )
+    const calculatedClaimToken = await pricersManager.usdAmountToToken(
+      oneSharePrice.mul(objectTokenShares).mul(rewardsRatio).div(10000),
+      token.address,
+    )
+    assert(
+      calculatedClaimToken.eq(estimatedClaimToken),
+      `calculatedClaimToken != estimatedClaimToken | ${calculatedClaimToken} != ${estimatedClaimToken}`,
+    )
 
-    // await pause.connect(ownersMultisigImpersonated).unpause()
+    expect(
+      referralProgram.connect(referrer).claim(object.address, 0, token.address, 0),
+    ).to.be.revertedWith('stage not exists!')
+    expect(
+      referralProgram.connect(referrer).claim(object.address, 100, token.address, 0),
+    ).to.be.revertedWith('stage not exists!')
+    expect(
+      referralProgram.connect(referrer).claim(object.address, stageId, token.address, 0),
+    ).to.be.revertedWith('stage not ready!')
 
-    // const estimatedClaimObjectRewardsToken = await referralProgram.estimateClaimObjectRewardsToken(
-    //   object.address,
-    //   objectTokenId,
-    //   token.address,
-    // )
+    await object.connect(ownersMultisigImpersonated).closeStage(stageId)
 
-    // const userBalanceBefore = await token.balanceOf(user.address)
-    // await referralProgram
-    //   .connect(user)
-    //   .claimObjectRewards(object.address, objectTokenId, token.address, 0)
-    // const userBalanceAfter = await token.balanceOf(user.address)
+    const referrerBalanceBefore = await token.balanceOf(referrer.address)
+    await referralProgram.connect(referrer).claim(object.address, stageId, token.address, 0)
+    const referrerBalanceAfter = await token.balanceOf(referrer.address)
+    assert(
+      referrerBalanceAfter.eq(referrerBalanceBefore.add(estimatedClaimToken)),
+      'referrer not recived rewards!',
+    )
 
-    // assert(
-    //   userBalanceAfter.eq(userBalanceBefore.add(estimatedClaimObjectRewardsToken)),
-    //   'user not recived pay tokens!',
-    // )
-
-    // await object
-    //   .connect(ownersMultisigImpersonated)
-    //   .sellObjectAndClose(ethers.utils.parseUnits('1000', 18))
-
-    // const estimatedClaimObjectRewardsToken2 = await referralProgram.estimateClaimObjectRewardsToken(
-    //   object.address,
-    //   objectTokenId,
-    //   token.address,
-    // )
-
-    // const userBalanceBefore2 = await token.balanceOf(user.address)
-    // await referralProgram
-    //   .connect(user)
-    //   .claimObjectRewards(object.address, objectTokenId, token.address, 0)
-    // const userBalanceAfter2 = await token.balanceOf(user.address)
-
-    // await expect(object.ownerOf(objectTokenId)).to.be.revertedWith('ERC721: invalid token ID')
-    // assert(
-    //   userBalanceAfter2.eq(userBalanceBefore2.add(estimatedClaimObjectRewardsToken2)),
-    //   'user not recived pay tokens2!',
-    // )
+    await expect(
+      referralProgram.connect(referrer).claim(object.address, stageId, token.address, 0),
+    ).to.be.revertedWith('rewards is zero!')
   })
 
   it('Regular: Upgarde only deployer', async () => {

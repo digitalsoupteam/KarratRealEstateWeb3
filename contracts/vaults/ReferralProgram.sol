@@ -12,6 +12,7 @@ import { IObject } from "../_interfaces/objects/IObject.sol";
 import { IReferralProgram } from "../_interfaces/vaults/IReferralProgram.sol";
 import { IAddressBook } from "../_interfaces/access/IAddressBook.sol";
 import "hardhat/console.sol";
+
 contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradeable {
     using SafeERC20 for IERC20;
     IAddressBook addressBook;
@@ -19,9 +20,8 @@ contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradea
     uint256 public constant DIVIDER = 10000;
     uint256 public rewarsRatio;
 
-    mapping(address referrer => mapping(IObject object => mapping(uint256 stageId => uint256 rewardsUSD))) rewards;
-
-    mapping(address referrer => uint256 usdAmount) totalEarned;
+    mapping(address referrer => mapping(IObject object => mapping(uint256 stageId => uint256 rewardsUSD)))
+        public rewards;
 
     mapping(address referral => mapping(IObject object => bool)) public referralHasObject;
     mapping(address referral => IObject[] objects) public referralObjects;
@@ -86,6 +86,25 @@ contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradea
         IERC20 _payToken
     ) external view returns (uint256) {
         uint256 _rewards = rewards[_referrer][_object][_stageId];
+        if (_rewards == 0) return 0;
+        return addressBook.pricersManager().usdAmountToToken(_rewards, _payToken);
+    }
+
+    function estimateClaimUSD(
+        address _referrer,
+        IObject _object,
+        uint256 _stageId
+    ) public view returns (uint256) {
+        return rewards[_referrer][_object][_stageId];
+    }
+    
+    function estimateClaimToken(
+        address _referrer,
+        IObject _object,
+        uint256 _stageId,
+        IERC20 _payToken
+    ) public view returns (uint256) {
+        uint256 _rewards = estimateClaimUSD(_referrer, _object, _stageId);
         if(_rewards == 0) return 0;
         return addressBook.pricersManager().usdAmountToToken(_rewards, _payToken);
     }
@@ -103,17 +122,11 @@ contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradea
         addressBook.requireObject(_object);
         _object.requireStageReady(_stageId);
 
-        uint256 rewardsUSD = rewards[_referrer][_object][_stageId];
-        require(rewardsUSD > 0, "not has rewards!");
+        uint256 _payTokenAmount = estimateClaimToken(_referrer, _object, _stageId, _payToken);
+        require(_payTokenAmount > 0, "rewards is zero!");
+        require(_payTokenAmount >= _minPayTokenAmount, "_minPayTokenAmount!");
 
         delete rewards[_referrer][_object][_stageId];
-        totalEarned[_referrer] += rewardsUSD;
-
-        uint256 _payTokenAmount = addressBook.pricersManager().usdAmountToToken(
-            rewardsUSD,
-            _payToken
-        );
-        require(_payTokenAmount >= _minPayTokenAmount, "_minPayTokenAmount!");
 
         _payToken.safeTransfer(_referrer, _payTokenAmount);
 

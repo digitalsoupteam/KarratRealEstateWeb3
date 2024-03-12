@@ -312,13 +312,23 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         require(_saleStopTimestamp == 0 || block.timestamp < _saleStopTimestamp, "sale disabled!");
     }
 
-    function sharesPrice(uint256 _sharesAmount) public view returns (uint256) {
-        uint256 _personalPrice = userPersonalPrice[msg.sender] * _sharesAmount;
-        return _personalPrice > 0 ? _personalPrice : currentPriceOneShare * _sharesAmount;
+    function estimateBuySharesUSD(
+        address _buyer,
+        uint256 _sharesAmount
+    ) public view returns (uint256) {
+        uint256 personalPrice = userPersonalPrice[_buyer];
+        uint256 price = personalPrice > 0 ? personalPrice : currentPriceOneShare;
+        return price * _sharesAmount;
     }
 
-    function payTokenAmount(uint256 _sharesAmount, IERC20 _payToken) public view returns (uint256) {
-        return addressBook.pricersManager().usdAmountToToken(sharesPrice(_sharesAmount), _payToken);
+    function estimateBuySharesToken(
+        address _buyer,
+        uint256 _sharesAmount,
+        IERC20 _payToken
+    ) public view returns (uint256) {
+        uint256 priceUSD = estimateBuySharesUSD(_buyer, _sharesAmount);
+        if (priceUSD == 0) return 0;
+        return addressBook.pricersManager().usdAmountToToken(priceUSD, _payToken);
     }
 
     function buyShares(
@@ -346,8 +356,8 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
 
         // pay tokens slippage
         IAddressBook _addressBook = addressBook;
-        uint256 _totalSharesPrice = userPersonalPrice[msg.sender] * _sharesAmount;
-        uint256 _payTokenAmount = payTokenAmount(_sharesAmount, _payToken);
+        uint256 _payTokenAmount = estimateBuySharesToken(msg.sender, _sharesAmount, _payToken);
+        require(_payTokenAmount > 0, "_payTokenAmount is zero!");
         require(_payTokenAmount <= _maxPayTokenAmount, "_maxPayTokenAmount!");
 
         // recieve pay tokens
@@ -367,6 +377,7 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         uint256 newMintedShares = mintedShares + _sharesAmount;
         require(newMintedShares <= stageAvailableShares[_currentStage], "maxAvailableShares!");
         mintedShares = newMintedShares;
+        uint256 _totalSharesPrice = estimateBuySharesUSD(msg.sender, _sharesAmount);
 
         // mint token
         uint256 tokenId = ++nextTokenId;

@@ -8,11 +8,15 @@ import {
   ObjectsFactory,
   IERC20__factory,
   Object__factory,
+  Treasury,
+  Treasury__factory,
+  Object as ObjectContract,
 } from '../../../typechain-types'
 import * as helpers from '@nomicfoundation/hardhat-network-helpers'
 import { USDT } from '../../../constants/addresses'
 import ERC20Minter from '../../utils/ERC20Minter'
 import { getImplementationAddress } from '@openzeppelin/upgrades-core'
+import { BigNumber } from 'ethers'
 
 describe(`Object`, () => {
   let ownersMultisig: MultisigWallet
@@ -20,6 +24,7 @@ describe(`Object`, () => {
   let administrator: SignerWithAddress
   let user: SignerWithAddress
   let objectsFactory: ObjectsFactory
+  let treasury: Treasury
   let initSnapshot: string
 
   before(async () => {
@@ -27,6 +32,11 @@ describe(`Object`, () => {
 
     objectsFactory = ObjectsFactory__factory.connect(
       (await deployments.get('ObjectsFactory')).address,
+      ethers.provider,
+    )
+
+    treasury = Treasury__factory.connect(
+      (await deployments.get('Treasury')).address,
       ethers.provider,
     )
 
@@ -55,66 +65,93 @@ describe(`Object`, () => {
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })
 
-  it(`full sale object`, async () => {
-    const payToken = IERC20__factory.connect(USDT, ethers.provider)
-    await ERC20Minter.mint(payToken.address, user.address, 10000)
+  describe('FullSale Object', () => {
+    let object: ObjectContract
+    let objectId: number
+    let stageId: number
+    let maxShares: number
+    let saleStopTimestamp: number
+    let priceOneShare: BigNumber
+    let referralProgramEnabled: boolean
 
-    const objectId = 1
-    const objectAddress = await objectsFactory.objectAddress(objectId)
-    const stageId = 1
-    const maxShares = 100
-    const saleStopTimestamp = 0
-    const priceOneShare = ethers.utils.parseUnits('100', 18)
-    const referralProgramEnabled = true
-    await objectsFactory
-      .connect(ownersMultisigImpersonated)
-      .createFullSaleObject(maxShares, saleStopTimestamp, priceOneShare, referralProgramEnabled)
+    beforeEach(async () => {
+      objectId = 1
+      stageId = 1
+      maxShares = 100
+      saleStopTimestamp = 0
+      priceOneShare = ethers.utils.parseUnits('100', 18)
+      referralProgramEnabled = true
+      await objectsFactory
+        .connect(ownersMultisigImpersonated)
+        .createFullSaleObject(maxShares, saleStopTimestamp, priceOneShare, referralProgramEnabled)
 
-    const object = Object__factory.connect(objectAddress, ethers.provider)
+      const objectAddress = await objectsFactory.objectAddress(objectId)
+      object = Object__factory.connect(objectAddress, ethers.provider)
+    })
 
-    const buyShares = 10
+    it('Regular: estimateBuySharesUSD', async () => {
+      const buyShares = 10
 
-    const estimateBuySharesUSD = await object.estimateBuySharesUSD(user.address, buyShares)
-    const calculatedSharesUSD = priceOneShare.mul(buyShares)
+      const estimateBuySharesUSD = await object.estimateBuySharesUSD(user.address, buyShares)
+      const calculatedSharesUSD = priceOneShare.mul(buyShares)
 
-    assert(
-      estimateBuySharesUSD.eq(calculatedSharesUSD),
-      'estimateBuySharesUSD != calculatedSharesUSD',
-    )
+      assert(
+        estimateBuySharesUSD.eq(calculatedSharesUSD),
+        'estimateBuySharesUSD != calculatedSharesUSD',
+      )
+    })
 
-    const estimateBuySharesToken = await object.estimateBuySharesToken(user.address, buyShares, payToken.address)
+    it('Regular: buy', async () => {
+      const buyShares = 10
 
-    const payTokenBalanceBefore = await payToken.balanceOf(user.address)
-    const nftBalanceBefore = await object.balanceOf(user.address)
+      const payToken = IERC20__factory.connect(USDT, ethers.provider)
+      await ERC20Minter.mint(payToken.address, user.address, 10000)
 
-    await payToken.connect(user).approve(object.address, ethers.constants.MaxUint256)
-
-    const tokenId = 1
-    await object
-      .connect(user)
-      .buyShares(
+      const estimateBuySharesToken = await object.estimateBuySharesToken(
+        user.address,
         buyShares,
         payToken.address,
-        ethers.constants.MaxUint256,
-        ethers.constants.AddressZero,
       )
 
-    const payTokenBalanceAfter = await payToken.balanceOf(user.address)
-    const nftBalanceAfter = await object.balanceOf(user.address)
+      const objectPayTokenBalanceBefore = await payToken.balanceOf(object.address)
+      const userPayTokenBalanceBefore = await payToken.balanceOf(user.address)
+      const nftBalanceBefore = await object.balanceOf(user.address)
 
-    assert(
-      payTokenBalanceAfter.eq(payTokenBalanceBefore.sub(estimateBuySharesToken)),
-      `payTokenAmount balane: payTokenBalanceAfter != payTokenBalanceBefore - estimateBuySharesToken
-         | ${payTokenBalanceAfter} != ${payTokenBalanceBefore} - ${estimateBuySharesToken})`,
-    )
+      await payToken.connect(user).approve(object.address, ethers.constants.MaxUint256)
 
-    assert(
-      nftBalanceAfter.eq(nftBalanceBefore.add(1)),
-      `payTokenAmount balane: nftBalanceAfter != nftBalanceBefore + 1
+      const tokenId = 1
+      await object
+        .connect(user)
+        .buyShares(
+          buyShares,
+          payToken.address,
+          ethers.constants.MaxUint256,
+          ethers.constants.AddressZero,
+        )
+
+      const objectPayTokenBalanceAfter = await payToken.balanceOf(object.address)
+      const userPayTokenBalanceAfter = await payToken.balanceOf(user.address)
+      const nftBalanceAfter = await object.balanceOf(user.address)
+
+      assert(
+        objectPayTokenBalanceAfter.eq(objectPayTokenBalanceBefore.add(estimateBuySharesToken)),
+        `objectPayTokenBalanceAfter!`,
+      )
+
+      assert(
+        userPayTokenBalanceAfter.eq(userPayTokenBalanceBefore.sub(estimateBuySharesToken)),
+        `payTokenAmount balane: userPayTokenBalanceAfter != userPayTokenBalanceBefore - estimateBuySharesToken
+         | ${userPayTokenBalanceAfter} != ${userPayTokenBalanceBefore} - ${estimateBuySharesToken})`,
+      )
+
+      assert(
+        nftBalanceAfter.eq(nftBalanceBefore.add(1)),
+        `payTokenAmount balane: nftBalanceAfter != nftBalanceBefore + 1
          | ${nftBalanceAfter} != ${nftBalanceBefore} + ${1})`,
-    )
+      )
 
-    assert((await object.tokenShares(tokenId)).eq(buyShares), 'buy shares amount != estimated')
+      assert((await object.tokenShares(tokenId)).eq(buyShares), 'buy shares amount != estimated')
+    })
   })
 
   it(`stage sale object`, async () => {

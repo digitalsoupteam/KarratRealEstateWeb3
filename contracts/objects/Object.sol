@@ -372,11 +372,9 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         // stage
         stagePayTokenAmount[_currentStage][_payToken] += _payTokenAmount;
         stageAvailableShares[_currentStage] -= _sharesAmount;
+        mintedShares += _sharesAmount;
 
         // shares
-        uint256 newMintedShares = mintedShares + _sharesAmount;
-        require(newMintedShares <= stageAvailableShares[_currentStage], "maxAvailableShares!");
-        mintedShares = newMintedShares;
         uint256 _totalSharesPrice = estimateBuySharesUSD(msg.sender, _sharesAmount);
 
         // mint token

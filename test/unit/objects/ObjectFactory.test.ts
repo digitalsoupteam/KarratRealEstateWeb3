@@ -63,6 +63,18 @@ describe(`ObjectsFactory`, () => {
     const saleStopTimestamp = 0
     const priceOneShare = ethers.utils.parseUnits('100', 18)
     const referralProgramEnabled = true
+    
+    await expect(
+      objectsFactory
+        .connect(user)
+        .createFullSaleObject(
+          maxShares,
+          saleStopTimestamp,
+          priceOneShare,
+          referralProgramEnabled,
+        ),
+    ).to.be.revertedWith('only owners multisig!')
+
     await objectsFactory
       .connect(ownersMultisigImpersonated)
       .createFullSaleObject(maxShares, saleStopTimestamp, priceOneShare, referralProgramEnabled)
@@ -97,7 +109,7 @@ describe(`ObjectsFactory`, () => {
 
     await expect(
       objectsFactory
-        .connect(ownersMultisigImpersonated)
+        .connect(administrator)
         .createStageSaleObject(
           maxShares,
           intialStageAvailableShares,

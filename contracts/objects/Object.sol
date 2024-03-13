@@ -38,11 +38,6 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
     bool public isSold;
 
     /*
-     @Pause
-    */
-    bool public isPaused;
-
-    /*
      @User
     */
     mapping(address account => uint256 oneSharePriceUSD) public userPersonalPrice;
@@ -113,25 +108,12 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
     }
 
     /*
-     @Pause
-    */
-    function pause() external {
-        addressBook.accessRoles().requireAdministrator(msg.sender);
-        isPaused = false;
-    }
-
-    function unpause() external {
-        addressBook.accessRoles().requireOwnersMultisig(msg.sender);
-        isPaused = true;
-    }
-
-    /*
      @Voting
     */
     function createVoting(uint256 _objectSellPrice, uint256 _expiredTimestamp) public {
         addressBook.accessRoles().requireAdministrator(msg.sender);
 
-        uint256 votingId = currentVotingId++;
+        uint256 votingId = ++currentVotingId;
         votingObjectSellPrice[votingId] = _objectSellPrice;
         votingExpiredTimestamp[votingId] = _expiredTimestamp;
     }
@@ -371,6 +353,7 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
 
         // stage
         stagePayTokenAmount[_currentStage][_payToken] += _payTokenAmount;
+        require(stageAvailableShares[_currentStage] >= _sharesAmount, "stageAvailableShares!");
         stageAvailableShares[_currentStage] -= _sharesAmount;
         mintedShares += _sharesAmount;
 
@@ -443,7 +426,6 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
 
     function buyBack(uint256 _tokenId) public {
         IAddressBook _addressBook = addressBook;
-        _addressBook.pause().requireNotPaused();
         _addressBook.requireBuyBackFund(msg.sender);
 
         companyShares += tokenShares[_tokenId];

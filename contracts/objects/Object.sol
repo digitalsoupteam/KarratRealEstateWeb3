@@ -128,9 +128,10 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         referralProgramEnabled = true;
     }
 
-    function closeVoting() external virtual {
+    function closeVoting(uint256 _votingId) external virtual {
+        require(_votingId == currentVotingId, "can close only current voting!");
         addressBook.accessRoles().requireAdministrator(msg.sender);
-        votingExpiredTimestamp[currentVotingId] = block.timestamp;
+        votingExpiredTimestamp[_votingId] = block.timestamp;
     }
 
     function vote(uint256 _votingId, uint256 _tokenId, bool _value) external {

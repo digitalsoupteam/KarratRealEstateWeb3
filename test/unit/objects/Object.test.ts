@@ -44,10 +44,7 @@ describe(`Object`, () => {
       ethers.provider,
     )
 
-    pause = Pause__factory.connect(
-      (await deployments.get('Pause')).address,
-      ethers.provider,
-    )
+    pause = Pause__factory.connect((await deployments.get('Pause')).address, ethers.provider)
 
     const OwnersMultisigDeployment = await deployments.get('OwnersMultisig')
     ownersMultisig = MultisigWallet__factory.connect(
@@ -99,28 +96,71 @@ describe(`Object`, () => {
     })
 
     it('referral programm controllers', async () => {
-      if(await object.referralProgramEnabled()) {
+      if (await object.referralProgramEnabled()) {
         await object.connect(administrator).disableReferralProgram()
-        assert(await object.referralProgramEnabled() == false, 'referral program not disabled!')
+        assert((await object.referralProgramEnabled()) == false, 'referral program not disabled!')
         await object.connect(ownersMultisigImpersonated).enableReferralProgram()
-        assert(await object.referralProgramEnabled() == true, 'referral program not enbled!')
+        assert((await object.referralProgramEnabled()) == true, 'referral program not enbled!')
       } else {
         await object.connect(ownersMultisigImpersonated).enableReferralProgram()
-        assert(await object.referralProgramEnabled() == true, 'referral program not enbled!')
+        assert((await object.referralProgramEnabled()) == true, 'referral program not enbled!')
         await object.connect(administrator).disableReferralProgram()
-        assert(await object.referralProgramEnabled() == false, 'referral program not disabled!')
+        assert((await object.referralProgramEnabled()) == false, 'referral program not disabled!')
       }
     })
 
     describe('Voting', () => {
       it('Regular create voting', async () => {
-        const votingId = 1;
-        const sellPrice = ethers.utils.parseUnits('1000', 18);
+        const votingId = 1
+        const sellPrice = ethers.utils.parseUnits('1000', 18)
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
         await object.connect(administrator).createVoting(sellPrice, timestamp)
 
         assert((await object.votingObjectSellPrice(votingId)).eq(sellPrice), 'voting sell price!')
-        assert((await object.votingExpiredTimestamp(votingId)).eq(timestamp), 'voting expired timestamp!')
+        assert(
+          (await object.votingExpiredTimestamp(votingId)).eq(timestamp),
+          'voting expired timestamp!',
+        )
+      })
+
+      it('Error user create voting', async () => {
+        const sellPrice = ethers.utils.parseUnits('1000', 18)
+        const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
+        await expect(object.connect(user).createVoting(sellPrice, timestamp)).to.be.revertedWith(
+          'only administrator',
+        )
+      })
+
+      describe('Voting actions', () => {
+        let votingId: number
+        let sellPrice: BigNumber
+        let votingExpiredTimestamp: number
+        beforeEach(async () => {
+          votingId = 1
+          sellPrice = ethers.utils.parseUnits('1000', 18)
+          votingExpiredTimestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
+          await object.connect(administrator).createVoting(sellPrice, votingExpiredTimestamp)
+        })
+
+        it('Regular close voting', async () => {
+          await object.connect(administrator).closeVoting(votingId)
+          const votingExpiredTimestamp = await object.votingExpiredTimestamp(votingId)
+          const timestampNow = (await ethers.provider.getBlock('latest')).timestamp
+          assert(votingExpiredTimestamp.lte(timestampNow), 'voting not closed')
+        })
+
+        it('Error user close voting', async () => {
+          await expect(object.connect(user).closeVoting(votingId)).to.be.revertedWith(
+            'only administrator!',
+          )
+        })
+
+        it('Regular double close voting', async () => {
+          await object.connect(administrator).closeVoting(votingId)
+          await expect(object.connect(administrator).closeVoting(votingId)).to.be.revertedWith(
+            'can close only current voting!!',
+          )
+        })
       })
     })
 
@@ -215,17 +255,18 @@ describe(`Object`, () => {
         await ERC20Minter.mint(payToken.address, user.address, 10000)
         await payToken.connect(user).approve(object.address, ethers.constants.MaxUint256)
 
-        
         await pause.connect(administrator).pause()
 
-        await expect(object
-          .connect(user)
-          .buyShares(
-            buyShares,
-            payToken.address,
-            ethers.constants.MaxUint256,
-            ethers.constants.AddressZero,
-          )).to.be.revertedWith('paused!')
+        await expect(
+          object
+            .connect(user)
+            .buyShares(
+              buyShares,
+              payToken.address,
+              ethers.constants.MaxUint256,
+              ethers.constants.AddressZero,
+            ),
+        ).to.be.revertedWith('paused!')
       })
     })
 
@@ -253,21 +294,21 @@ describe(`Object`, () => {
       describe('Exit', () => {
         it('Regalar exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(1)
-  
+
           const userPayTokenBalanceBefore = await payToken.balanceOf(user.address)
           const userNftBalanceBefore = await object.balanceOf(user.address)
-    
+
           await object.connect(user).exit(tokenId)
-  
+
           const userPayTokenBalanceAfter = await payToken.balanceOf(user.address)
           const userNftBalanceAfter = await object.balanceOf(user.address)
-  
+
           const estimateBuySharesToken = await object.estimateBuySharesToken(
             user.address,
             buyShares,
             payToken.address,
           )
-  
+
           assert(userNftBalanceAfter.eq(userNftBalanceBefore.sub(1)), 'nft not tranfered from user')
           await expect(object.ownerOf(tokenId)).to.be.revertedWith('ERC721: invalid token ID')
           assert(
@@ -279,27 +320,35 @@ describe(`Object`, () => {
         it('Error exit not token owner', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(1)
 
-          await expect(object.connect(administrator).exit(tokenId)).to.be.revertedWith('only token owner!')
+          await expect(object.connect(administrator).exit(tokenId)).to.be.revertedWith(
+            'only token owner!',
+          )
         })
 
         it('Error double exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(1)
 
           await object.connect(user).exit(tokenId)
-          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith('ERC721: invalid token ID')
+          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith(
+            'ERC721: invalid token ID',
+          )
         })
 
         it('Error exit: sale stop timestamp disabled', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(0)
-          
-          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith('cant exit with active sale!')
+
+          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith(
+            'cant exit with active sale!',
+          )
         })
 
         it('Error exit: sale stop timestamp not expired', async () => {
           const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(timestamp)
-          
-          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith('cant exit with active sale!')
+
+          await expect(object.connect(user).exit(tokenId)).to.be.revertedWith(
+            'cant exit with active sale!',
+          )
         })
 
         it('Error exit: paused', async () => {
@@ -309,8 +358,6 @@ describe(`Object`, () => {
           await expect(object.connect(user).exit(tokenId)).to.be.revertedWith('paused!')
         })
       })
-
-      
     })
   })
 

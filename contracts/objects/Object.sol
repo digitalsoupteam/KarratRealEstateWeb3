@@ -73,17 +73,12 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
      @Voting
     */
     uint256 public currentVotingId;
-    enum Vote {
-        Unused,
-        Yes,
-        No
-    }
-    mapping(uint256 votignId => mapping(uint256 tokenId => Vote vote)) public votingVotes;
     mapping(uint256 votignId => uint256 sellPriceUSD) public votingObjectSellPrice;
     mapping(uint256 votignId => uint256 expiredTimestamp) public votingExpiredTimestamp;
-    mapping(uint256 votignId => mapping(uint256 tokenId => uint256 yesShares))
-        public votingYesShares;
-    mapping(uint256 votignId => mapping(uint256 tokenId => uint256 noShares)) public votingNoShares;
+    mapping(uint256 votignId => uint256 yesShares) public votingYesShares;
+    mapping(uint256 votignId => uint256 noShares) public votingNoShares;
+
+    event Vote(address user, uint256 tokenId, uint256 votingId, bool value);
 
     function initialize(
         address _addressBook,
@@ -130,6 +125,7 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
 
     function closeVoting(uint256 _votingId) external virtual {
         require(_votingId == currentVotingId, "can close only current voting!");
+        require(votingExpiredTimestamp[_votingId] > block.timestamp, "voting expired!");
         addressBook.accessRoles().requireAdministrator(msg.sender);
         votingExpiredTimestamp[_votingId] = block.timestamp;
     }
@@ -148,24 +144,46 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         tokenVoted[_tokenId][_votingId] = true;
 
         if (_value) {
-            votingVotes[_votingId][_tokenId] = Vote.Yes;
-            votingYesShares[_votingId][_tokenId] =
-                tokenShares[_tokenId] -
-                votingYesShares[_votingId][_tokenId];
+            votingYesShares[_votingId] = tokenShares[_tokenId] - votingYesShares[_votingId];
         } else {
-            votingVotes[_votingId][_tokenId] = Vote.No;
-            votingNoShares[_votingId][_tokenId] = tokenShares[_tokenId];
+            votingNoShares[_votingId] = tokenShares[_tokenId];
         }
+
+        emit Vote(msg.sender, _tokenId, _votingId, _value);
     }
 
     /*
      @Stage
     */
-    function createNewStage(uint256 _shares, uint256 _oneSharePrice) external {
+    function createNewStage(
+        uint256 _shares,
+        uint256 _oneSharePrice,
+        uint256 _saleStopTimestamp
+    ) external {
         addressBook.accessRoles().requireOwnersMultisig(msg.sender);
-        require(stageAvailableShares[currentStage] == 0, "last stage not closed!");
-        stageAvailableShares[++currentStage] = _shares;
+
+        require(_shares > 0, "_shares is zero!");
+        require(_oneSharePrice > 0, "_oneSharePrice is zero!");
+        require(
+            _saleStopTimestamp == 0 || _saleStopTimestamp > block.timestamp,
+            "_saleStopTimestamp!"
+        );
+
         require(mintedShares + _shares <= maxShares, "maxShares!");
+        require(stageAvailableShares[currentStage] == 0, "last stage not closed!");
+
+        uint256 newStageId = ++currentStage;
+        stageAvailableShares[newStageId] = _shares;
+        stageSaleStopTimestamp[newStageId] = _saleStopTimestamp;
+
+        currentPriceOneShare = _oneSharePrice;
+    }
+
+    function setStagePriceOneShare(uint256 _stageId, uint256 _oneSharePrice) external {
+        addressBook.accessRoles().requireOwnersMultisig(msg.sender);
+        require(_oneSharePrice > 0, "_oneSharePrice is zero!");
+        require(_stageId == currentStage, "can set price only current stage!");
+        require(stageAvailableShares[currentStage] > 0, "all stage shares sold!");
         currentPriceOneShare = _oneSharePrice;
     }
 
@@ -254,32 +272,11 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         stageSaleStopTimestamp[currentStage] = block.timestamp;
     }
 
-    function setSaleStopTimestamp(uint256 _saleStopTimestamp) external {
+    function setSaleStopTimestamp(uint256 _stageId, uint256 _saleStopTimestamp) external {
         addressBook.accessRoles().requireOwnersMultisig(msg.sender);
-        stageSaleStopTimestamp[currentStage] = _saleStopTimestamp;
+        require(_stageId == currentStage, "can update only current stage!");
+        stageSaleStopTimestamp[_stageId] = _saleStopTimestamp;
     }
-
-    // function _mintShares(
-    //     address _recipient,
-    //     uint256 _sharesAmount,
-    //     uint256 _totalSharesPrice
-    // ) internal returns (uint256 tokenId) {
-    //     require(isSold == false, "object sold!");
-
-    //     uint256 newMintedShares = mintedShares + _sharesAmount;
-
-    //     require(newMintedShares <= stageAvailableShares[currentStage], "maxAvailableShares!");
-    //     mintedShares = newMintedShares;
-
-    //     // mint token
-    //     tokenId = ++nextTokenId;
-    //     tokenShares[tokenId] = _sharesAmount;
-    //     tokenBuyPrice[tokenId] = _totalSharesPrice;
-    //     _safeMint(_recipient, tokenId);
-
-    //     // New token without rewards
-    //     _updateWithdrawnRewards(tokenId);
-    // }
 
     function requireTokenReady(uint256 _tokenId) public view {
         requireStageReady(tokenStage[_tokenId]);
@@ -290,18 +287,20 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         require(stageAvailableShares[_stageId] == 0, "stage not ready!");
     }
 
-    function _requireActiveSale() internal view {
+    function isActiveSale() public view returns (bool) {
         uint256 _saleStopTimestamp = stageSaleStopTimestamp[currentStage];
-        require(_saleStopTimestamp == 0 || block.timestamp < _saleStopTimestamp, "sale disabled!");
+        return _saleStopTimestamp == 0 || block.timestamp < _saleStopTimestamp;
+    }
+
+    function _requireActiveSale() internal view {
+        require(isActiveSale(), "sale disabled!");
     }
 
     function estimateBuySharesUSD(
         address _buyer,
         uint256 _sharesAmount
     ) public view returns (uint256) {
-        uint256 personalPrice = userPersonalPrice[_buyer];
-        uint256 price = personalPrice > 0 ? personalPrice : currentPriceOneShare;
-        return price * _sharesAmount;
+        return getPriceForUser(_buyer) * _sharesAmount;
     }
 
     function estimateBuySharesToken(
@@ -314,6 +313,15 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         return addressBook.pricersManager().usdAmountToToken(priceUSD, _payToken);
     }
 
+    function getPriceForUser(address _user) public view returns (uint256) {
+        uint256 _personalPrice = userPersonalPrice[_user];
+        uint256 _currentPriceOneShare = currentPriceOneShare;
+        if (_personalPrice == 0 || _currentPriceOneShare < _personalPrice) {
+            _personalPrice = _currentPriceOneShare;
+        }
+        return _personalPrice;
+    }
+
     function buyShares(
         uint256 _sharesAmount,
         IERC20 _payToken,
@@ -324,9 +332,7 @@ contract Object is UUPSUpgradeable, ERC721Upgradeable {
         _requireActiveSale();
         require(isSold == false, "object sold!");
 
-        if (userPersonalPrice[msg.sender] == 0) {
-            userPersonalPrice[msg.sender] = currentPriceOneShare;
-        }
+        userPersonalPrice[msg.sender] = getPriceForUser(msg.sender);
 
         uint256 _currentStage = currentStage;
 

@@ -144,18 +144,18 @@ describe(`Pause`, () => {
   })
 
   it(`Regular: unpause ownersMultisig`, async () => {
-    await pause.connect(ownersMultisigImpersonated).unpuaseContract(objectsFactory.address)
+    await pause.connect(ownersMultisigImpersonated).unpauseContract(objectsFactory.address)
     assert((await pause.pausedContracts(objectsFactory.address)) == false, 'pause not disabled!')
   })
 
   it(`Error: unpause administrator`, async () => {
     await expect(
-      pause.connect(administrator).unpuaseContract(objectsFactory.address),
+      pause.connect(administrator).unpauseContract(objectsFactory.address),
     ).to.be.revertedWith('only owners multisig!')
   })
 
   it(`Error: unpause user`, async () => {
-    await expect(pause.connect(user).unpuaseContract(objectsFactory.address)).to.be.revertedWith(
+    await expect(pause.connect(user).unpauseContract(objectsFactory.address)).to.be.revertedWith(
       'only owners multisig!',
     )
   })

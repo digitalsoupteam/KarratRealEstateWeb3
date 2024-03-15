@@ -46,23 +46,6 @@ contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradea
         return referralObjects[_referrer].length;
     }
 
-    // function getReferralObjects(
-    //     address _referrer,
-    //     uint256 _startFrom,
-    //     uint256 _count
-    // ) external view returns (address[] memory objects, uint256[] memory objectsRewards) {
-    //     uint256 length = referralObjectsLength(_referrer);
-    //     uint256 end = _startFrom + _count;
-    //     if (end >= length) end = length;
-    //     uint256 resultLength = end - _startFrom;
-    //     objects = new address[](resultLength);
-    //     objectsRewards = new uint256[](resultLength);
-    //     for (uint256 i; i < resultLength; ++i) {
-    //         objects[i] = referralObjects[_referrer][_startFrom + i];
-    //         objectsRewards[i] = rewards[_referrer][objects[i]];
-    //     }
-    // }
-
     function registerSell(address _referrer, uint256 _stageId, uint256 _fullPriceUSD) external {
         IObject _object = IObject(msg.sender);
         addressBook.requireObject(_object);

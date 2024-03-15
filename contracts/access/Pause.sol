@@ -33,7 +33,7 @@ contract Pause is IPause, UUPSUpgradeable {
         enabled = false;
     }
 
-    function unpuaseContract(address _contract) external {
+    function unpauseContract(address _contract) external {
         addressBook.accessRoles().requireOwnersMultisig(msg.sender);
         pausedContracts[_contract] = false;
     }

@@ -40,6 +40,11 @@ describe(`Treasury`, () => {
 
     const accounts = await ethers.getSigners()
     user = accounts[1]
+    
+    const administratorAddress = '0x14dC79964da2C08b23698B3D3cc7Ca32193d9955'
+    await helpers.impersonateAccount(administratorAddress)
+    administrator = await ethers.getSigner(administratorAddress)
+    await helpers.setBalance(ownersMultisigImpersonated.address, ethers.utils.parseEther('100'))
 
     initSnapshot = await ethers.provider.send('evm_snapshot', [])
   })

@@ -732,7 +732,7 @@ describe(`Object`, () => {
       it('Error: not ownersMultisig setSaleStopTimestamp', async () => {
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 50
         await expect(
-          object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, timestamp),
+          object.connect(administrator).setSaleStopTimestamp(stageId, timestamp),
         ).to.be.revertedWith('only owners multisig!')
       })
     })

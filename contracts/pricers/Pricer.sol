@@ -28,7 +28,6 @@ contract Pricer is IPricer, UUPSUpgradeable {
     }
     
     function setCurrentPrice(int256 _newPrice) external {
-        // ? bot access
         addressBook.accessRoles().requireOwnersMultisig(msg.sender);
         require(_newPrice > 0, "price is zero!");
 

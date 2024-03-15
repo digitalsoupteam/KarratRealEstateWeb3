@@ -6,7 +6,6 @@ import { IERC165 } from "@openzeppelin/contracts/utils/introspection/IERC165.sol
 
 import { IAccessRoles } from "../_interfaces/access/IAccessRoles.sol";
 import { IMultisigWallet } from "../_interfaces/access/IMultisigWallet.sol";
-import "hardhat/console.sol";
 
 contract AccessRoles is IAccessRoles, UUPSUpgradeable {
     IMultisigWallet public ownersMultisig;

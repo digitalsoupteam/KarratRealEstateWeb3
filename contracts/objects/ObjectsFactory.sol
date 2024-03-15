@@ -10,7 +10,6 @@ import { ERC1967ProxyCreate2 } from "../utils/ERC1967ProxyCreate2.sol";
 
 import { IObject } from "../_interfaces/objects/IObject.sol";
 import { IAddressBook } from "../_interfaces/access/IAddressBook.sol";
-import "hardhat/console.sol";
 
 contract ObjectsFactory is UUPSUpgradeable, MulticallUpgradeable {
     using SafeERC20 for IERC20;

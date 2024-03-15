@@ -11,7 +11,6 @@ import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC
 import { IObject } from "../_interfaces/objects/IObject.sol";
 import { IReferralProgram } from "../_interfaces/vaults/IReferralProgram.sol";
 import { IAddressBook } from "../_interfaces/access/IAddressBook.sol";
-import "hardhat/console.sol";
 
 contract ReferralProgram is IReferralProgram, UUPSUpgradeable, MulticallUpgradeable {
     using SafeERC20 for IERC20;

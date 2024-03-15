@@ -8,7 +8,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { IMultisigWallet } from "../_interfaces/access/IMultisigWallet.sol";
 import { IAddressBook } from "../_interfaces/access/IAddressBook.sol";
-import "hardhat/console.sol";
+
 contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
     using SafeERC20 for IERC20;
 
@@ -80,8 +80,6 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
 
         if (txConfirmationsCount[_txId] >= requiredSigners) {
             txExecuted[_txId] = true;
-            console.log("_confirmTransaction", _txId);
-            console.log("txExecuted[_txId]", txExecuted[_txId]);
             (bool success, ) = txTarget[_txId].call{ value: txValue[_txId] }(txData[_txId]);
             require(success, "transaction call failure!");
         }
@@ -130,8 +128,6 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
     }
 
     function _requireNotExecuted(uint256 _txId) internal view {
-        console.log("_txId", _txId);
-        console.log("txExecuted[_txId]", txExecuted[_txId]);
         require(txExecuted[_txId] == false, "tx already executed!");
     }
 

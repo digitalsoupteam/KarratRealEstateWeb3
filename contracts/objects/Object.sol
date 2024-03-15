@@ -6,15 +6,14 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { MulticallUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/MulticallUpgradeable.sol";
-import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
+import { ERC721EnumerableUpgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721EnumerableUpgradeable.sol";
 
 import { IObject } from "../_interfaces/objects/IObject.sol";
 import { IAddressBook } from "../_interfaces/access/IAddressBook.sol";
 import { IReferralProgram } from "../_interfaces/vaults/IReferralProgram.sol";
 import { IEarningsPool } from "../_interfaces/vaults/IEarningsPool.sol";
-import "hardhat/console.sol";
 
-contract Object is UUPSUpgradeable, ERC721Upgradeable {
+contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
     /*
      @Libraries
     */

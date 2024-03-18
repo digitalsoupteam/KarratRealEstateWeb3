@@ -52,7 +52,7 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
     }
 
     function submitTransaction(address _target, uint256 _value, bytes calldata _data) external payable {
-        require(_value == msg.value, "_value != sg.value");
+        require(_value == msg.value, "_value != msg.value");
         _requireNotSelfCall();
         _requireSigner();
         uint256 txId = ++txsCount;
@@ -97,7 +97,8 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
     }
 
     function getTransaction(
-        uint256 _txId
+        uint256 _txId,
+        address _signer
     )
         external
         view
@@ -105,6 +106,7 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
             address target,
             uint256 value,
             bytes memory data,
+            address creator,
             bool executed,
             uint256 confirmationsCount,
             bool alreadySigned
@@ -114,9 +116,10 @@ contract MultisigWallet is IMultisigWallet, UUPSUpgradeable, ERC165 {
         target = txTarget[_txId];
         value = txValue[_txId];
         data = txData[_txId];
+        creator = txCreator[_txId];
         executed = txExecuted[_txId];
         confirmationsCount = txConfirmationsCount[_txId];
-        alreadySigned = txConfirmations[_txId][msg.sender];
+        alreadySigned = txConfirmations[_txId][_signer];
     }
 
     function _requireSelfCall() internal view {

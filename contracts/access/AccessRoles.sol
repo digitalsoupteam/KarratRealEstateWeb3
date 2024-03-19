@@ -41,6 +41,11 @@ contract AccessRoles is IAccessRoles, UUPSUpgradeable {
         ownersMultisig = IMultisigWallet(_ownersMultisig);
     }
 
+    function setAdministrator(address _administrator, bool _value) external {
+        requireOwnersMultisig(msg.sender);
+        administrators[_administrator] = _value;
+    }
+
     function setDeployer(address _deployer) external {
         requireOwnersMultisig(msg.sender);
         deployer = _deployer;

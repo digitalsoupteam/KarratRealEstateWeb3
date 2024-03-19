@@ -185,6 +185,28 @@ describe(`AccessRoles`, () => {
     }
   })
 
+  it(`Regular: setAdministrator`, async () => {
+    await accessRoles.connect(ownersMultisigImpersonated).setAdministrator(user.address, true)
+    assert(await accessRoles.administrators(user.address), 'admin not setted!')
+    await accessRoles.connect(ownersMultisigImpersonated).setAdministrator(ethers.constants.AddressZero, false)
+    assert(await accessRoles.administrators(user.address), 'admin not removed!')
+  })
+
+  it(`Error: not owners setAdministrator`, async () => {
+    const users: Record<string, SignerWithAddress> = {
+      user: user,
+      administrator: administrator,
+    }
+    for (const name of Object.keys(users)) {
+      console.log(`caller: ${name}`)
+      const signer = users[name]
+
+      await expect(accessRoles.connect(signer).setAdministrator(user.address, true)).to.be.revertedWith(
+        'only owners multisig!',
+      )
+    }
+  })
+
   it(`Regular: requireDeployer`, async () => {
     await accessRoles.requireDeployer(ethers.constants.AddressZero)
     await expect(accessRoles.requireDeployer(user.address)).to.be.revertedWith('only deployer!');

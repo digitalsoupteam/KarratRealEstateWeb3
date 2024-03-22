@@ -66,9 +66,13 @@ contract AccessRoles is IAccessRoles, UUPSUpgradeable {
 
     function requireAdministrator(address _account) external view {
         require(
-            administrators[_account] || ownersMultisig.signers(_account),
+            isAdministrator(_account),
             "only administrator!"
         );
+    }
+
+    function isAdministrator(address _account) public view returns(bool) {
+        return administrators[_account] || ownersMultisig.signers(_account);
     }
 
     function _authorizeUpgrade(address) internal view override {

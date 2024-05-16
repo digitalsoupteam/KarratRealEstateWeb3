@@ -250,10 +250,12 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
 
         uint256 _currentStage = currentStage;
 
+        /* TODO: check used it?
         // shares
         uint256 newMintedShares = mintedShares + _shares;
         require(newMintedShares <= stageAvailableShares[_currentStage], "maxAvailableShares!");
         mintedShares = newMintedShares;
+        */
 
         // mint token
         uint256 tokenId = ++nextTokenId;
@@ -375,7 +377,7 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
         tokenBuyForAmount[tokenId] = _payTokenAmount;
         _safeMint(msg.sender, tokenId);
 
-        // New token without rewards
+        // New token not has rewards
         _updateWithdrawnRewards(tokenId);
 
         // referral program

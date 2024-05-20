@@ -105,6 +105,90 @@ describe(`EarningsPool`, () => {
     ).to.be.revertedWith('only administrator!')
   })
 
+  it(`Regular estimateClaimObjectRewardsToken`, async () => {
+    const token = IERC20__factory.connect(USDT, ethers.provider)
+    await ERC20Minter.mint(token.address, user.address, 10000)
+    await ERC20Minter.mint(token.address, earningsPool.address, 10000)
+
+    const objectId = 1
+    const objectAddress = await objectsFactory.objectAddress(objectId)
+    await objectsFactory
+      .connect(ownersMultisigImpersonated)
+      .createFullSaleObject(100, 0, ethers.utils.parseUnits('100', 18), true)
+
+    const object = Object__factory.connect(objectAddress, ethers.provider)
+
+    const objectTokenId = 1
+    const objectTokenShares = 10
+    await token.connect(user).approve(object.address, ethers.constants.MaxUint256)
+    await object
+      .connect(user)
+      .buyShares(
+        objectTokenShares,
+        token.address,
+        ethers.constants.MaxUint256,
+        ethers.constants.AddressZero,
+      )
+
+    const earnings = ethers.utils.parseUnits('10000', 18)
+    await object
+      .connect(ownersMultisigImpersonated)
+      .addEarnings(earnings)
+
+    const estimateRewardsUSD = await object.estimateRewardsUSD(objectTokenId)
+    const calculatedRewardsUSD = earnings.mul(objectTokenShares).div(await object.maxShares())
+
+    assert(
+      estimateRewardsUSD.eq(calculatedRewardsUSD),
+      'estimateRewardsUSD != calculatedSharesUSD',
+    )
+  })
+
+  
+  it(`Regular estimateClaimObjectRewardsToken boosted stage`, async () => {
+    const boostedEarnings = ethers.utils.parseUnits('100', 18)
+
+    const token = IERC20__factory.connect(USDT, ethers.provider)
+    await ERC20Minter.mint(token.address, user.address, 10000)
+    await ERC20Minter.mint(token.address, earningsPool.address, 10000)
+
+    const objectId = 1
+    const objectAddress = await objectsFactory.objectAddress(objectId)
+    await objectsFactory
+      .connect(ownersMultisigImpersonated)
+      .createFullSaleObject(100, 0, ethers.utils.parseUnits('100', 18), true)
+
+    const object = Object__factory.connect(objectAddress, ethers.provider)
+
+    const objectTokenId = 1
+    const objectTokenShares = 10
+    await token.connect(user).approve(object.address, ethers.constants.MaxUint256)
+    await object
+      .connect(user)
+      .buyShares(
+        objectTokenShares,
+        token.address,
+        ethers.constants.MaxUint256,
+        ethers.constants.AddressZero,
+      )
+
+    const earnings = ethers.utils.parseUnits('10000', 18)
+    await object
+      .connect(ownersMultisigImpersonated)
+      .addEarnings(earnings)
+
+      
+    await object.connect(ownersMultisigImpersonated).addStageBoostedEarnings([1], [boostedEarnings])
+
+    const estimateRewardsUSD = await object.estimateRewardsUSD(objectTokenId)
+    const calculatedRewardsUSD = (earnings.add(boostedEarnings)).mul(objectTokenShares).div(await object.maxShares())
+
+    assert(
+      estimateRewardsUSD.eq(calculatedRewardsUSD),
+      'estimateRewardsUSD != calculatedSharesUSD',
+    )
+  })
+
   it(`claimObjectRewards`, async () => {
     const token = IERC20__factory.connect(USDT, ethers.provider)
     await ERC20Minter.mint(token.address, user.address, 10000)
@@ -139,6 +223,102 @@ describe(`EarningsPool`, () => {
     await object
       .connect(ownersMultisigImpersonated)
       .addEarnings(ethers.utils.parseUnits('10000', 18))
+
+    await expect(
+      earningsPool
+        .connect(administrator)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('only token owner!')
+
+    await pause.connect(administrator).pause()
+
+    await expect(
+      earningsPool
+        .connect(user)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('paused!')
+
+    await pause.connect(ownersMultisigImpersonated).unpause()
+
+    const estimatedClaimObjectRewardsToken = await earningsPool.estimateClaimObjectRewardsToken(
+      object.address,
+      objectTokenId,
+      token.address,
+    )
+
+    const userBalanceBefore = await token.balanceOf(user.address)
+    await earningsPool
+      .connect(user)
+      .claimObjectRewards(object.address, objectTokenId, token.address, 0)
+    const userBalanceAfter = await token.balanceOf(user.address)
+
+    assert(
+      userBalanceAfter.eq(userBalanceBefore.add(estimatedClaimObjectRewardsToken)),
+      'user not recived pay tokens!',
+    )
+
+    await object
+      .connect(ownersMultisigImpersonated)
+      .sellObjectAndClose(ethers.utils.parseUnits('1000', 18))
+
+    const estimatedClaimObjectRewardsToken2 = await earningsPool.estimateClaimObjectRewardsToken(
+      object.address,
+      objectTokenId,
+      token.address,
+    )
+
+    const userBalanceBefore2 = await token.balanceOf(user.address)
+    await earningsPool
+      .connect(user)
+      .claimObjectRewards(object.address, objectTokenId, token.address, 0)
+    const userBalanceAfter2 = await token.balanceOf(user.address)
+
+    await expect(object.ownerOf(objectTokenId)).to.be.revertedWith('ERC721: invalid token ID')
+    assert(
+      userBalanceAfter2.eq(userBalanceBefore2.add(estimatedClaimObjectRewardsToken2)),
+      'user not recived pay tokens2!',
+    )
+  })
+
+
+  it(`claimObjectRewards with boosted stage`, async () => {
+    const boostedEarnings = ethers.utils.parseUnits('100', 18)
+
+    const token = IERC20__factory.connect(USDT, ethers.provider)
+    await ERC20Minter.mint(token.address, user.address, 10000)
+    await ERC20Minter.mint(token.address, earningsPool.address, 10000)
+
+    const objectId = 1
+    const objectAddress = await objectsFactory.objectAddress(objectId)
+    await objectsFactory
+      .connect(ownersMultisigImpersonated)
+      .createFullSaleObject(100, 0, ethers.utils.parseUnits('100', 18), true)
+
+    const object = Object__factory.connect(objectAddress, ethers.provider)
+
+    const objectTokenId = 1
+    const objectTokenShares = 10
+    await token.connect(user).approve(object.address, ethers.constants.MaxUint256)
+    await object
+      .connect(user)
+      .buyShares(
+        objectTokenShares,
+        token.address,
+        ethers.constants.MaxUint256,
+        ethers.constants.AddressZero,
+      )
+
+    await expect(
+      earningsPool
+        .connect(user)
+        .claimObjectRewards(object.address, objectTokenId, token.address, 0),
+    ).to.be.revertedWith('not has rewards!')
+
+    await object
+      .connect(ownersMultisigImpersonated)
+      .addEarnings(ethers.utils.parseUnits('10000', 18))
+
+    await object.connect(ownersMultisigImpersonated).addStageBoostedEarnings([1], [boostedEarnings])
 
     await expect(
       earningsPool

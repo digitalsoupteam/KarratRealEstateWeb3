@@ -67,6 +67,7 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
     mapping(uint256 stageId => uint256 saleStopTimestamp) public stageSaleStopTimestamp;
     mapping(uint256 stageId => mapping(IERC20 payToken => bool exists)) public stagePayTokenExists;
     mapping(uint256 stageId => IERC20[]) public stagePayTokens;
+    mapping(uint256 stageId => uint256 earnings) public stageBoostedEarnings;
 
     /*
      @Voting
@@ -188,7 +189,32 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
 
     function closeStage(uint256 _stageId) external {
         require(_stageId == currentStage, "stage already closed!");
+        // [!] requireOwnersMultisig in buySharesForCompany
         buySharesForCompany(stageAvailableShares[_stageId]);
+    }
+
+    function addStageBoostedEarnings(
+        uint256[] calldata _stageIds,
+        uint256[] calldata _earnings
+    ) external {
+        addressBook.accessRoles().requireOwnersMultisig(msg.sender);
+        require(_stageIds.length == _earnings.length, "length!");
+        for (uint256 i; i < _stageIds.length; ++i) {
+            require(_stageIds[i] <= currentStage, "unknow stage!");
+            stageBoostedEarnings[_stageIds[i]] += _earnings[i];
+        }
+    }
+
+    function subStageBoostedEarnings(
+        uint256[] calldata _stageIds,
+        uint256[] calldata _earnings
+    ) external {
+        addressBook.accessRoles().requireAdministrator(msg.sender);
+        require(_stageIds.length == _earnings.length, "length!");
+        for (uint256 i; i < _stageIds.length; ++i) {
+            require(_stageIds[i] <= currentStage, "unknow stage!");
+            stageBoostedEarnings[_stageIds[i]] -= _earnings[i];
+        }
     }
 
     function addEarnings(uint256 _amount) public virtual {
@@ -444,7 +470,7 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
     // --  Earning  ----------
     // -----------------------
 
-    function updateWithdrawnRewards(uint256 _tokenId) public virtual returns (uint256 rewardsUSD) {
+    function updateWithdrawnRewards(uint256 _tokenId) public returns (uint256 rewardsUSD) {
         addressBook.pause().requireNotPaused();
 
         addressBook.requireEarningsPool(IEarningsPool(msg.sender));
@@ -458,7 +484,10 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
     }
 
     function estimateRewardsUSD(uint256 _tokenId) public view returns (uint256) {
-        return (tokenShares[_tokenId] * earnings) / maxShares - tokenWithdrawnRewards[_tokenId];
+        return
+            (tokenShares[_tokenId] * (earnings + stageBoostedEarnings[tokenStage[_tokenId]])) /
+            maxShares -
+            tokenWithdrawnRewards[_tokenId];
     }
 
     function _updateWithdrawnRewards(uint256 _tokenId) internal returns (uint256 rewardsUSD) {

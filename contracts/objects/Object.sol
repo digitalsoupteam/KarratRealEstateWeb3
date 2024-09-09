@@ -144,9 +144,9 @@ contract Object is UUPSUpgradeable, ERC721EnumerableUpgradeable {
         tokenVoted[_tokenId][_votingId] = true;
 
         if (_value) {
-            votingYesShares[_votingId] = tokenShares[_tokenId] - votingYesShares[_votingId];
+            votingYesShares[_votingId] += tokenShares[_tokenId];
         } else {
-            votingNoShares[_votingId] = tokenShares[_tokenId];
+            votingNoShares[_votingId] += tokenShares[_tokenId];
         }
 
         emit Vote(msg.sender, _tokenId, _votingId, _value);

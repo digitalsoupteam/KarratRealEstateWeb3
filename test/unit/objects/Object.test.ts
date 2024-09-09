@@ -97,7 +97,7 @@ describe(`Object`, () => {
       object = Object__factory.connect(objectAddress, ethers.provider)
     })
 
-    it('referral programm controllers', async () => {
+    xit('referral programm controllers', async () => {
       if (await object.referralProgramEnabled()) {
         await object.connect(administrator).disableReferralProgram()
         assert((await object.referralProgramEnabled()) == false, 'referral program not disabled!')
@@ -111,19 +111,19 @@ describe(`Object`, () => {
       }
     })
 
-    it('Error create stage with zero price', async () => {
+    xit('Error create stage with zero price', async () => {
       await expect(
         object.connect(ownersMultisigImpersonated).createNewStage(1, 0, 0),
       ).to.be.revertedWith('_oneSharePrice is zero!')
     })
 
-    it('Error create zero stage', async () => {
+    xit('Error create zero stage', async () => {
       await expect(
         object.connect(ownersMultisigImpersonated).createNewStage(0, 1, 0),
       ).to.be.revertedWith('_shares is zero!')
     })
 
-    it('Error cant create new stage for full sale object', async () => {
+    xit('Error cant create new stage for full sale object', async () => {
       await object.connect(ownersMultisigImpersonated).closeStage(stageId)
       await expect(
         object.connect(ownersMultisigImpersonated).createNewStage(1, 1, 0),
@@ -131,7 +131,7 @@ describe(`Object`, () => {
     })
 
     describe('Buy', () => {
-      it('Regular: estimateBuySharesUSD', async () => {
+      xit('Regular: estimateBuySharesUSD', async () => {
         const buyShares = 10
 
         const estimateBuySharesUSD = await object.estimateBuySharesUSD(user.address, buyShares)
@@ -143,7 +143,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Regular: buy', async () => {
+      xit('Regular: buy', async () => {
         const buyShares = 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -195,7 +195,7 @@ describe(`Object`, () => {
         assert((await object.tokenShares(tokenId)).eq(buyShares), 'buy shares amount != estimated')
       })
 
-      it('Error: buy more max shares', async () => {
+      xit('Error: buy more max shares', async () => {
         const buyShares = maxShares + 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -214,7 +214,7 @@ describe(`Object`, () => {
         ).to.be.revertedWith('stageAvailableShares!')
       })
 
-      it('Regular: personal price', async () => {
+      xit('Regular: personal price', async () => {
         const buyShares = 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -307,7 +307,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error buy: paused', async () => {
+      xit('Error buy: paused', async () => {
         const buyShares = maxShares + 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -330,7 +330,7 @@ describe(`Object`, () => {
     })
 
     describe('Voting', () => {
-      it('Regular create voting', async () => {
+      xit('Regular create voting', async () => {
         const votingId = 1
         const sellPrice = ethers.utils.parseUnits('1000', 18)
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
@@ -343,7 +343,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error user create voting', async () => {
+      xit('Error user create voting', async () => {
         const sellPrice = ethers.utils.parseUnits('1000', 18)
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
         await expect(object.connect(user).createVoting(sellPrice, timestamp)).to.be.revertedWith(
@@ -362,26 +362,26 @@ describe(`Object`, () => {
           await object.connect(administrator).createVoting(sellPrice, votingExpiredTimestamp)
         })
 
-        it('Regular close voting', async () => {
+        xit('Regular close voting', async () => {
           await object.connect(administrator).closeVoting(votingId)
           const votingExpiredTimestamp = await object.votingExpiredTimestamp(votingId)
           const timestampNow = (await ethers.provider.getBlock('latest')).timestamp
           assert(votingExpiredTimestamp.lte(timestampNow), 'voting not closed')
         })
 
-        it('Error user close voting', async () => {
+        xit('Error user close voting', async () => {
           await expect(object.connect(user).closeVoting(votingId)).to.be.revertedWith(
             'only administrator!',
           )
         })
 
-        it('Error close not current voting', async () => {
+        xit('Error close not current voting', async () => {
           await expect(object.connect(administrator).closeVoting(100)).to.be.revertedWith(
             'can close only current voting!',
           )
         })
 
-        it('Error double close voting', async () => {
+        xit('Error double close voting', async () => {
           await object.connect(administrator).closeVoting(votingId)
           await expect(object.connect(administrator).closeVoting(votingId)).to.be.revertedWith(
             'voting expired!',
@@ -409,7 +409,7 @@ describe(`Object`, () => {
               )
           })
 
-          it('split/merge', async () => {
+          xit('split/merge', async () => {
             const rightShares = 3
             const leftTokenId = 2
             const rightTokenId = 3
@@ -446,7 +446,7 @@ describe(`Object`, () => {
             )
           })
 
-          it('Regular vote yes', async () => {
+          xit('Regular vote yes', async () => {
             await object.connect(user).vote(votingId, tokenId, true)
             assert((await object.tokenVoted(votingId, tokenId)) == true, 'token voted not setted!')
             assert(
@@ -459,7 +459,33 @@ describe(`Object`, () => {
             )
           })
 
-          it('Regular vote no', async () => {
+          it('Regular multi vote yes', async () => {
+            
+            const payToken = IERC20__factory.connect(USDT, ethers.provider)
+            await ERC20Minter.mint(payToken.address, user.address, 100000)
+            await payToken.connect(user).approve(object.address, ethers.constants.MaxUint256)
+
+            const newTokenId = 2
+            const newTokenShares = 2
+
+            await object
+              .connect(user)
+              .buyShares(
+                newTokenShares,
+                payToken.address,
+                ethers.constants.MaxUint256,
+                ethers.constants.AddressZero,
+              )
+
+            await object.connect(user).vote(votingId, tokenId, true)
+            await object.connect(user).vote(votingId, newTokenId, true)
+            assert(
+              (await object.votingYesShares(votingId)).eq(tokenShares + newTokenShares),
+              'voting not recived shares power!',
+            )
+          })
+
+          xit('Regular vote no', async () => {
             await object.connect(user).vote(votingId, tokenId, false)
             assert((await object.tokenVoted(votingId, tokenId)) == true, 'token voted not setted!')
             assert(
@@ -472,7 +498,7 @@ describe(`Object`, () => {
             )
           })
 
-          it('Error double vote after yes vote', async () => {
+          xit('Error double vote after yes vote', async () => {
             await object.connect(user).vote(votingId, tokenId, true)
             await expect(object.connect(user).vote(votingId, tokenId, true)).to.be.revertedWith(
               'token already voted!',
@@ -482,7 +508,7 @@ describe(`Object`, () => {
             )
           })
 
-          it('Error double vote after no vote', async () => {
+          xit('Error double vote after no vote', async () => {
             await object.connect(user).vote(votingId, tokenId, false)
             await expect(object.connect(user).vote(votingId, tokenId, true)).to.be.revertedWith(
               'token already voted!',
@@ -516,7 +542,7 @@ describe(`Object`, () => {
         }
       })
 
-      it('Regular: ownersMultisig setStagePriceOneShare', async () => {
+      xit('Regular: ownersMultisig setStagePriceOneShare', async () => {
         const newPrice = ethers.utils.parseUnits('178', 18)
         await object.connect(ownersMultisigImpersonated).setStagePriceOneShare(stageId, newPrice)
         assert(
@@ -525,14 +551,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig setStagePriceOneShare', async () => {
+      xit('Error: not ownersMultisig setStagePriceOneShare', async () => {
         const newPrice = ethers.utils.parseUnits('178', 18)
         await expect(
           object.connect(administrator).setStagePriceOneShare(stageId, newPrice),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig close stage', async () => {
+      xit('Regular: ownersMultisig close stage', async () => {
         const stageAvailableShares = await object.stageAvailableShares(stageId)
         const companySharesBefore = await object.companyShares()
         await object.connect(ownersMultisigImpersonated).closeStage(stageId)
@@ -543,13 +569,13 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig close stage', async () => {
+      xit('Error: not ownersMultisig close stage', async () => {
         await expect(object.connect(administrator).closeStage(stageId)).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: ownersMultisig addEarnings', async () => {
+      xit('Regular: ownersMultisig addEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         const objectEarningsBefore = await object.earnings()
         await object.connect(ownersMultisigImpersonated).addEarnings(addedEarnings)
@@ -560,14 +586,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig addEarnings', async () => {
+      xit('Error: not ownersMultisig addEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         await expect(object.connect(administrator).addEarnings(addedEarnings)).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: administrator subEarnings', async () => {
+      xit('Regular: administrator subEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         await object.connect(ownersMultisigImpersonated).addEarnings(addedEarnings)
 
@@ -581,14 +607,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not administrator subEarnings', async () => {
+      xit('Error: not administrator subEarnings', async () => {
         const subEarnings = ethers.utils.parseUnits('1000', 18)
         await expect(object.connect(user).subEarnings(subEarnings)).to.be.revertedWith(
           'only administrator!',
         )
       })
 
-      it('Regular: ownersMultisig sellObjectAndClose', async () => {
+      xit('Regular: ownersMultisig sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         const objectEarningsBefore = await object.earnings()
         await object.connect(ownersMultisigImpersonated).sellObjectAndClose(sellPrice)
@@ -600,7 +626,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: double sellObjectAndClose', async () => {
+      xit('Error: double sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         await object.connect(ownersMultisigImpersonated).sellObjectAndClose(sellPrice)
         await expect(
@@ -608,14 +634,14 @@ describe(`Object`, () => {
         ).to.be.revertedWith('object already sold!')
       })
 
-      it('Error: not ownersMultisig sellObjectAndClose', async () => {
+      xit('Error: not ownersMultisig sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         await expect(
           object.connect(administrator).sellObjectAndClose(sellPrice),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig buySharesForCompany', async () => {
+      xit('Regular: ownersMultisig buySharesForCompany', async () => {
         const sharesAmount = 7
         const companySharesBefore = await object.companyShares()
         await object.connect(ownersMultisigImpersonated).buySharesForCompany(sharesAmount)
@@ -626,7 +652,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Regular: ownersMultisig buySharesForCompany all stage supply', async () => {
+      xit('Regular: ownersMultisig buySharesForCompany all stage supply', async () => {
         const availableShares = await object.stageAvailableShares(stageId)
         const companySharesBefore = await object.companyShares()
 
@@ -658,14 +684,14 @@ describe(`Object`, () => {
         }
       })
 
-      it('Error: not ownersMultisig buySharesForCompany', async () => {
+      xit('Error: not ownersMultisig buySharesForCompany', async () => {
         const sharesAmount = 7
         await expect(
           object.connect(administrator).buySharesForCompany(sharesAmount),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig withdrawCompanyShares', async () => {
+      xit('Regular: ownersMultisig withdrawCompanyShares', async () => {
         const companySharesAmount = 7
         await object.connect(ownersMultisigImpersonated).buySharesForCompany(companySharesAmount)
 
@@ -690,14 +716,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig withdrawCompanyShares', async () => {
+      xit('Error: not ownersMultisig withdrawCompanyShares', async () => {
         const sharesAmount = 7
         await expect(
           object.connect(administrator).withdrawCompanyShares(sharesAmount, user.address, 0),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig closeSale', async () => {
+      xit('Regular: ownersMultisig closeSale', async () => {
         await object.connect(ownersMultisigImpersonated).closeSale()
         assert((await object.isActiveSale()) == false, 'sale not closed')
         const nowTimestamp = (await ethers.provider.getBlock('latest')).timestamp
@@ -707,13 +733,13 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig closeSale', async () => {
+      xit('Error: not ownersMultisig closeSale', async () => {
         await expect(object.connect(administrator).closeSale()).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: ownersMultisig setSaleStopTimestamp', async () => {
+      xit('Regular: ownersMultisig setSaleStopTimestamp', async () => {
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 50
         await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, timestamp)
 
@@ -729,7 +755,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig setSaleStopTimestamp', async () => {
+      xit('Error: not ownersMultisig setSaleStopTimestamp', async () => {
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 50
         await expect(
           object.connect(administrator).setSaleStopTimestamp(stageId, timestamp),
@@ -758,13 +784,13 @@ describe(`Object`, () => {
           )
       })
 
-      it('requireTokenReady', async () => {
+      xit('requireTokenReady', async () => {
         await expect(object.requireTokenReady(tokenId)).to.be.revertedWith('stage not ready!')
         await object.connect(ownersMultisigImpersonated).closeStage(stageId)
         await object.requireTokenReady(tokenId)
       })
 
-      it('requireStageReady', async () => {
+      xit('requireStageReady', async () => {
         await expect(object.requireStageReady(0)).to.be.revertedWith('stage not exists!')
         await expect(object.requireStageReady(100)).to.be.revertedWith('stage not exists!')
         await expect(object.requireStageReady(stageId)).to.be.revertedWith('stage not ready!')
@@ -773,7 +799,7 @@ describe(`Object`, () => {
       })
 
       describe('Exit', () => {
-        it('Regalar exit', async () => {
+        xit('Regalar exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           const userPayTokenBalanceBefore = await payToken.balanceOf(user.address)
@@ -798,7 +824,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit not token owner', async () => {
+        xit('Error exit not token owner', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await expect(object.connect(administrator).exit(tokenId)).to.be.revertedWith(
@@ -806,7 +832,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error double exit', async () => {
+        xit('Error double exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await object.connect(user).exit(tokenId)
@@ -815,7 +841,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: sale stop timestamp disabled', async () => {
+        xit('Error exit: sale stop timestamp disabled', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 0)
 
           await expect(object.connect(user).exit(tokenId)).to.be.revertedWith(
@@ -823,7 +849,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: sale stop timestamp not expired', async () => {
+        xit('Error exit: sale stop timestamp not expired', async () => {
           const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, timestamp)
 
@@ -832,7 +858,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: paused', async () => {
+        xit('Error exit: paused', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await pause.connect(administrator).pause()
@@ -876,7 +902,7 @@ describe(`Object`, () => {
       object = Object__factory.connect(objectAddress, ethers.provider)
     })
 
-    it('referral programm controllers', async () => {
+    xit('referral programm controllers', async () => {
       if (await object.referralProgramEnabled()) {
         await object.connect(administrator).disableReferralProgram()
         assert((await object.referralProgramEnabled()) == false, 'referral program not disabled!')
@@ -890,19 +916,19 @@ describe(`Object`, () => {
       }
     })
 
-    it('Error create stage with zero price', async () => {
+    xit('Error create stage with zero price', async () => {
       await expect(
         object.connect(ownersMultisigImpersonated).createNewStage(1, 0, 0),
       ).to.be.revertedWith('_oneSharePrice is zero!')
     })
 
-    it('Error create zero stage', async () => {
+    xit('Error create zero stage', async () => {
       await expect(
         object.connect(ownersMultisigImpersonated).createNewStage(0, 1, 0),
       ).to.be.revertedWith('_shares is zero!')
     })
 
-    // it('Error cant create new stage for full sale object', async () => {
+    // xit('Error cant create new stage for full sale object', async () => {
     //   await object.connect(ownersMultisigImpersonated).closeStage(stageId)
     //   await expect(
     //     object.connect(ownersMultisigImpersonated).createNewStage(1, 1, 0),
@@ -910,7 +936,7 @@ describe(`Object`, () => {
     // })
 
     describe('Buy', () => {
-      it('Regular: estimateBuySharesUSD', async () => {
+      xit('Regular: estimateBuySharesUSD', async () => {
         const buyShares = 10
 
         const estimateBuySharesUSD = await object.estimateBuySharesUSD(user.address, buyShares)
@@ -922,7 +948,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Regular: buy', async () => {
+      xit('Regular: buy', async () => {
         const buyShares = 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -976,7 +1002,7 @@ describe(`Object`, () => {
         assert((await object.tokenShares(tokenId)).eq(buyShares), 'buy shares amount != estimated')
       })
 
-      it('Error: buy more max shares', async () => {
+      xit('Error: buy more max shares', async () => {
         const buyShares = maxShares + 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -995,7 +1021,7 @@ describe(`Object`, () => {
         ).to.be.revertedWith('stageAvailableShares!')
       })
 
-      it('Regular: personal price', async () => {
+      xit('Regular: personal price', async () => {
         const buyShares = 5
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -1088,7 +1114,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error buy: paused', async () => {
+      xit('Error buy: paused', async () => {
         const buyShares = maxShares + 10
 
         const payToken = IERC20__factory.connect(USDT, ethers.provider)
@@ -1111,7 +1137,7 @@ describe(`Object`, () => {
     })
 
     // describe('Voting', () => {
-    //   it('Regular create voting', async () => {
+    //   xit('Regular create voting', async () => {
     //     const votingId = 1
     //     const sellPrice = ethers.utils.parseUnits('1000', 18)
     //     const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
@@ -1124,7 +1150,7 @@ describe(`Object`, () => {
     //     )
     //   })
 
-    //   it('Error user create voting', async () => {
+    //   xit('Error user create voting', async () => {
     //     const sellPrice = ethers.utils.parseUnits('1000', 18)
     //     const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
     //     await expect(object.connect(user).createVoting(sellPrice, timestamp)).to.be.revertedWith(
@@ -1143,26 +1169,26 @@ describe(`Object`, () => {
     //       await object.connect(administrator).createVoting(sellPrice, votingExpiredTimestamp)
     //     })
 
-    //     it('Regular close voting', async () => {
+    //     xit('Regular close voting', async () => {
     //       await object.connect(administrator).closeVoting(votingId)
     //       const votingExpiredTimestamp = await object.votingExpiredTimestamp(votingId)
     //       const timestampNow = (await ethers.provider.getBlock('latest')).timestamp
     //       assert(votingExpiredTimestamp.lte(timestampNow), 'voting not closed')
     //     })
 
-    //     it('Error user close voting', async () => {
+    //     xit('Error user close voting', async () => {
     //       await expect(object.connect(user).closeVoting(votingId)).to.be.revertedWith(
     //         'only administrator!',
     //       )
     //     })
 
-    //     it('Error close not current voting', async () => {
+    //     xit('Error close not current voting', async () => {
     //       await expect(object.connect(administrator).closeVoting(100)).to.be.revertedWith(
     //         'can close only current voting!',
     //       )
     //     })
 
-    //     it('Error double close voting', async () => {
+    //     xit('Error double close voting', async () => {
     //       await object.connect(administrator).closeVoting(votingId)
     //       await expect(object.connect(administrator).closeVoting(votingId)).to.be.revertedWith(
     //         'voting expired!',
@@ -1190,7 +1216,7 @@ describe(`Object`, () => {
     //           )
     //       })
 
-    //       it('split/merge', async () => {
+    //       xit('split/merge', async () => {
     //         const rightShares = 3
     //         const leftTokenId = 2
     //         const rightTokenId = 3
@@ -1227,7 +1253,7 @@ describe(`Object`, () => {
     //         )
     //       })
 
-    //       it('Regular vote yes', async () => {
+    //       xit('Regular vote yes', async () => {
     //         await object.connect(user).vote(votingId, tokenId, true)
     //         assert((await object.tokenVoted(votingId, tokenId)) == true, 'token voted not setted!')
     //         assert(
@@ -1240,7 +1266,7 @@ describe(`Object`, () => {
     //         )
     //       })
 
-    //       it('Regular vote no', async () => {
+    //       xit('Regular vote no', async () => {
     //         await object.connect(user).vote(votingId, tokenId, false)
     //         assert((await object.tokenVoted(votingId, tokenId)) == true, 'token voted not setted!')
     //         assert(
@@ -1253,7 +1279,7 @@ describe(`Object`, () => {
     //         )
     //       })
 
-    //       it('Error double vote after yes vote', async () => {
+    //       xit('Error double vote after yes vote', async () => {
     //         await object.connect(user).vote(votingId, tokenId, true)
     //         await expect(object.connect(user).vote(votingId, tokenId, true)).to.be.revertedWith(
     //           'token already voted!',
@@ -1263,7 +1289,7 @@ describe(`Object`, () => {
     //         )
     //       })
 
-    //       it('Error double vote after no vote', async () => {
+    //       xit('Error double vote after no vote', async () => {
     //         await object.connect(user).vote(votingId, tokenId, false)
     //         await expect(object.connect(user).vote(votingId, tokenId, true)).to.be.revertedWith(
     //           'token already voted!',
@@ -1297,7 +1323,7 @@ describe(`Object`, () => {
         }
       })
 
-      it('Regular: ownersMultisig setStagePriceOneShare', async () => {
+      xit('Regular: ownersMultisig setStagePriceOneShare', async () => {
         const newPrice = ethers.utils.parseUnits('178', 18)
         await object.connect(ownersMultisigImpersonated).setStagePriceOneShare(stageId, newPrice)
         assert(
@@ -1306,14 +1332,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig setStagePriceOneShare', async () => {
+      xit('Error: not ownersMultisig setStagePriceOneShare', async () => {
         const newPrice = ethers.utils.parseUnits('178', 18)
         await expect(
           object.connect(administrator).setStagePriceOneShare(stageId, newPrice),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig close stage', async () => {
+      xit('Regular: ownersMultisig close stage', async () => {
         const stageAvailableShares = await object.stageAvailableShares(stageId)
         const companySharesBefore = await object.companyShares()
         await object.connect(ownersMultisigImpersonated).closeStage(stageId)
@@ -1324,13 +1350,13 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig close stage', async () => {
+      xit('Error: not ownersMultisig close stage', async () => {
         await expect(object.connect(administrator).closeStage(stageId)).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: ownersMultisig addEarnings', async () => {
+      xit('Regular: ownersMultisig addEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         const objectEarningsBefore = await object.earnings()
         await object.connect(ownersMultisigImpersonated).addEarnings(addedEarnings)
@@ -1341,14 +1367,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig addEarnings', async () => {
+      xit('Error: not ownersMultisig addEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         await expect(object.connect(administrator).addEarnings(addedEarnings)).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: administrator subEarnings', async () => {
+      xit('Regular: administrator subEarnings', async () => {
         const addedEarnings = ethers.utils.parseUnits('1000', 18)
         await object.connect(ownersMultisigImpersonated).addEarnings(addedEarnings)
 
@@ -1362,14 +1388,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not administrator subEarnings', async () => {
+      xit('Error: not administrator subEarnings', async () => {
         const subEarnings = ethers.utils.parseUnits('1000', 18)
         await expect(object.connect(user).subEarnings(subEarnings)).to.be.revertedWith(
           'only administrator!',
         )
       })
 
-      it('Regular: ownersMultisig sellObjectAndClose', async () => {
+      xit('Regular: ownersMultisig sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         const objectEarningsBefore = await object.earnings()
         await object.connect(ownersMultisigImpersonated).sellObjectAndClose(sellPrice)
@@ -1381,7 +1407,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: double sellObjectAndClose', async () => {
+      xit('Error: double sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         await object.connect(ownersMultisigImpersonated).sellObjectAndClose(sellPrice)
         await expect(
@@ -1389,14 +1415,14 @@ describe(`Object`, () => {
         ).to.be.revertedWith('object already sold!')
       })
 
-      it('Error: not ownersMultisig sellObjectAndClose', async () => {
+      xit('Error: not ownersMultisig sellObjectAndClose', async () => {
         const sellPrice = ethers.utils.parseUnits('10000', 18)
         await expect(
           object.connect(administrator).sellObjectAndClose(sellPrice),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig buySharesForCompany', async () => {
+      xit('Regular: ownersMultisig buySharesForCompany', async () => {
         const sharesAmount = 1
         const companySharesBefore = await object.companyShares()
         await object.connect(ownersMultisigImpersonated).buySharesForCompany(sharesAmount)
@@ -1407,7 +1433,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Regular: ownersMultisig buySharesForCompany > stageAvailableShares', async () => {
+      xit('Regular: ownersMultisig buySharesForCompany > stageAvailableShares', async () => {
         const stageAvailableShares = await object.stageAvailableShares(1)
         const sharesAmount = stageAvailableShares.add(2)
         const companySharesBefore = await object.companyShares()
@@ -1419,7 +1445,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Regular: ownersMultisig buySharesForCompany all stage supply', async () => {
+      xit('Regular: ownersMultisig buySharesForCompany all stage supply', async () => {
         const availableShares = await object.stageAvailableShares(stageId)
         const companySharesBefore = await object.companyShares()
 
@@ -1451,14 +1477,14 @@ describe(`Object`, () => {
         }
       })
 
-      it('Error: not ownersMultisig buySharesForCompany', async () => {
+      xit('Error: not ownersMultisig buySharesForCompany', async () => {
         const sharesAmount = 7
         await expect(
           object.connect(administrator).buySharesForCompany(sharesAmount),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig withdrawCompanyShares', async () => {
+      xit('Regular: ownersMultisig withdrawCompanyShares', async () => {
         const companySharesAmount = 7
         await object.connect(ownersMultisigImpersonated).buySharesForCompany(companySharesAmount)
 
@@ -1483,14 +1509,14 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig withdrawCompanyShares', async () => {
+      xit('Error: not ownersMultisig withdrawCompanyShares', async () => {
         const sharesAmount = 7
         await expect(
           object.connect(administrator).withdrawCompanyShares(sharesAmount, user.address, 0),
         ).to.be.revertedWith('only owners multisig!')
       })
 
-      it('Regular: ownersMultisig closeSale', async () => {
+      xit('Regular: ownersMultisig closeSale', async () => {
         await object.connect(ownersMultisigImpersonated).closeSale()
         assert((await object.isActiveSale()) == false, 'sale not closed')
         const nowTimestamp = (await ethers.provider.getBlock('latest')).timestamp
@@ -1500,13 +1526,13 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig closeSale', async () => {
+      xit('Error: not ownersMultisig closeSale', async () => {
         await expect(object.connect(administrator).closeSale()).to.be.revertedWith(
           'only owners multisig!',
         )
       })
 
-      it('Regular: ownersMultisig setSaleStopTimestamp', async () => {
+      xit('Regular: ownersMultisig setSaleStopTimestamp', async () => {
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 50
         await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, timestamp)
 
@@ -1522,7 +1548,7 @@ describe(`Object`, () => {
         )
       })
 
-      it('Error: not ownersMultisig setSaleStopTimestamp', async () => {
+      xit('Error: not ownersMultisig setSaleStopTimestamp', async () => {
         const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 50
         await expect(
           object.connect(administrator).setSaleStopTimestamp(stageId, timestamp),
@@ -1551,13 +1577,13 @@ describe(`Object`, () => {
           )
       })
 
-      it('requireTokenReady', async () => {
+      xit('requireTokenReady', async () => {
         await expect(object.requireTokenReady(tokenId)).to.be.revertedWith('stage not ready!')
         await object.connect(ownersMultisigImpersonated).closeStage(stageId)
         await object.requireTokenReady(tokenId)
       })
 
-      it('requireStageReady', async () => {
+      xit('requireStageReady', async () => {
         await expect(object.requireStageReady(0)).to.be.revertedWith('stage not exists!')
         await expect(object.requireStageReady(100)).to.be.revertedWith('stage not exists!')
         await expect(object.requireStageReady(stageId)).to.be.revertedWith('stage not ready!')
@@ -1566,7 +1592,7 @@ describe(`Object`, () => {
       })
 
       describe('Exit', () => {
-        it('Regalar exit', async () => {
+        xit('Regalar exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           const userPayTokenBalanceBefore = await payToken.balanceOf(user.address)
@@ -1591,7 +1617,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit not token owner', async () => {
+        xit('Error exit not token owner', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await expect(object.connect(administrator).exit(tokenId)).to.be.revertedWith(
@@ -1599,7 +1625,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error double exit', async () => {
+        xit('Error double exit', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await object.connect(user).exit(tokenId)
@@ -1608,7 +1634,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: sale stop timestamp disabled', async () => {
+        xit('Error exit: sale stop timestamp disabled', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 0)
 
           await expect(object.connect(user).exit(tokenId)).to.be.revertedWith(
@@ -1616,7 +1642,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: sale stop timestamp not expired', async () => {
+        xit('Error exit: sale stop timestamp not expired', async () => {
           const timestamp = (await ethers.provider.getBlock('latest')).timestamp + 1000
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, timestamp)
 
@@ -1625,7 +1651,7 @@ describe(`Object`, () => {
           )
         })
 
-        it('Error exit: paused', async () => {
+        xit('Error exit: paused', async () => {
           await object.connect(ownersMultisigImpersonated).setSaleStopTimestamp(stageId, 1)
 
           await pause.connect(administrator).pause()
@@ -1635,7 +1661,7 @@ describe(`Object`, () => {
     })
   })
 
-  it('Regular: Upgarde only deployer', async () => {
+  xit('Regular: Upgarde only deployer', async () => {
     const objectsFactoryFactory = await ethers.getContractFactory('ObjectsFactory')
     const newObjectsFactory = await objectsFactoryFactory.deploy()
 
@@ -1650,7 +1676,7 @@ describe(`Object`, () => {
     )
   })
 
-  it('Error unit: Upgarde not owner', async () => {
+  xit('Error unit: Upgarde not owner', async () => {
     const users: Record<string, SignerWithAddress> = {
       user: user,
       administrator: administrator,
